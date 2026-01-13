@@ -4,7 +4,7 @@ dotenv.config();
 
 const { createLogger } = require("./src/utils/logger");
 const { initializeRedis } = require("./src/cache/redis");
-const { getCompetitionsList } = require("./src/modules/markets/marketData");
+const { getComptMatches } = require("./src/modules/markets/marketData");
 
 const port = process.env.PORT || 3000;
 const app = express();
@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 (async () => {
   await Promise.all([
     // initializeRedis(),
-    getCompetitionsList(),
+    getComptMatches(),
   ]);
 })();
 
