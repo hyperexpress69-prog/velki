@@ -103,12 +103,10 @@ const getMarketOdds = async (sportId) => {
     const eventIds = await getCache(`SPORT_EVENTS:${sportId}`);
     if (!Array.isArray(eventIds)) return;
 
-    // Process all events concurrently
     await Promise.all(eventIds.map(async (eventId) => {
       const marketIds = await getCache(`EVENT_MARKETS:${eventId}`);
       if (!Array.isArray(marketIds)) return;
 
-      // Process all markets within the event concurrently
       await Promise.all(marketIds.map(async (marketId) => {
         const marketInfo = await getCache(`MARKET:${marketId}`);
         if (!marketInfo) return;
@@ -119,11 +117,10 @@ const getMarketOdds = async (sportId) => {
           allOdds.push(odds);
           await setCache(`MARKET_ODDS:${marketId}`, odds);
         } catch (error) {
-          // Individual API failure doesn't stop others
+          console.error("error occured to fetch marketOdds of:", marketId);
         }
       }));
     }));
-    console.log(allOdds.length, JSON.stringify(allOdds.filter(Boolean)));
     console.log("getMarketOdds completed", Date.now());
   } catch (error) {
     console.error("getMarketOdds error", error);
