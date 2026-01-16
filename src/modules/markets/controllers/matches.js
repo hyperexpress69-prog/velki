@@ -4,7 +4,7 @@ const { ApiResponse } = require("../../../utils/apiResponse");
 const { createLogger } = require("../../../utils/logger");
 const { getMarketsOdds, getMatchesList } = require("../services/converter");
 
-const logger = createLogger("match", "jsonl");
+const logger = createLogger("match_api", "jsonl");
 
 const getMatchCount = async (req, res) => {
     try {
@@ -18,7 +18,7 @@ const getMatchCount = async (req, res) => {
         }
         return res.status(200).send(new ApiResponse(200, "Match List fetched successfully.", data));
     } catch (error) {
-        logger.error(error)
+        logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }));
         console.error(error, "internal server error");
 
         return res.status(error.status || 500).send(new ApiError(error.status, error.message || "internal server error",))
@@ -35,7 +35,7 @@ const getMatchList = async (req, res) => {
             .status(200)
             .send(new ApiResponse(200, "Matches list fetched successfully", data));
     } catch (error) {
-        logger.error(error)
+        logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
         console.error(error, "internal server error");
 
         return res
@@ -53,7 +53,7 @@ const getMatchOdds = async (req, res) => {
             .status(200)
             .send(new ApiResponse(200, "Markets Odds fetched successfully", data));
     } catch (error) {
-        logger.error(error)
+        logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
         console.error(error, "internal server error");
 
         return res

@@ -38,7 +38,7 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
     const market = {
         marketId: marketInfo.marketId,
         marketName: marketInfo.marketName,
-        marketType: marketInfo.marketName.toUpperCase().replace(/\s+/g, "_"),
+        // marketType: marketInfo.marketName.toUpperCase().replace(/\s+/g, "_"),
         selections
     };
 
@@ -141,7 +141,7 @@ const convertToMatchOddsStructure = (eventType, marketInfo, marketData) => {
         eventType: Number(eventType),
         eventId: Number(event.id),
         marketId,
-        marketType: marketName.toUpperCase().replace(/\s+/g, "_"),
+        // marketType: marketName.toUpperCase().replace(/\s+/g, "_"),
         bettingType: 1,
         countryCode: event.countryCode,
         marketName

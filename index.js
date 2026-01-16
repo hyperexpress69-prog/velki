@@ -5,7 +5,8 @@ dotenv.config();
 const { createLogger } = require("./src/utils/logger");
 const { initializeRedis } = require("./src/cache/redis");
 const { getMarketInfo } = require("./src/modules/markets/services/marketData");
-const { matchRouter } = require("./src/routes/index");
+const { matchRouter, fancyRouter } = require("./src/routes/index");
+const { getSportsFancyData } = require("./src/modules/fancy/services/fancyData");
 
 const port = process.env.PORT || 3000;
 const app = express();
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
     await Promise.all([
       initializeRedis(),
       getMarketInfo(),
+      getSportsFancyData()
     ]);
   } catch (error) {
     console.error("error occured during starting server", error);
@@ -26,6 +28,8 @@ app.use(express.urlencoded({ extended: true }));
   }
 })();
 
-app.use("/v2/spb", matchRouter)
+app.use("/v2/spb/match", matchRouter)
+app.use("/v2/spb/fancy", fancyRouter)
+
 
 app.listen(port, () => logger.info(`server running on port: ${port}`));

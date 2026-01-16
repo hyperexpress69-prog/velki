@@ -6,9 +6,7 @@ const getFilteredData = (arr) => {
         if (e.status == "fulfilled") {
           return [e.value];
         } else return [];
-      })
-      .flat(1)
-      .filter(Boolean);
+      }).flat(1).filter(Boolean);
   } catch (error) {
     console.error(error);
     return [];

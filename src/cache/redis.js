@@ -88,6 +88,17 @@ const deleteCache = async (key) => {
   }
 };
 
+const getCacheKeys = async (pattern = "*") => {
+  if (!redisClient) await initializeRedis();
+  try {
+    const keys = await redisClient.keys(pattern);
+    return keys;
+  } catch (error) {
+    logger.error("Failed to get cache keys:", error.message);
+    return [];
+  }
+};
+
 const incrementCache = async (key, amount = 1) => {
   if (!redisClient) await initializeRedis();
   try {
@@ -108,6 +119,17 @@ const clearRedisCache = async () => {
   }
 };
 
+// Add a value to a Redis Set
+const saddCache = async (key, value) => {
+  if (!redisClient) await initializeRedis();
+  try {
+    return await redisClient.sadd(key, value);
+  } catch (error) {
+    logger.error(`Failed to add to set cache: ${error.message}`);
+    return null;
+  }
+};
+
 module.exports = {
   initializeRedis,
   setCache,
@@ -115,4 +137,6 @@ module.exports = {
   deleteCache,
   incrementCache,
   clearRedisCache,
+  getCacheKeys,
+  saddCache
 };
