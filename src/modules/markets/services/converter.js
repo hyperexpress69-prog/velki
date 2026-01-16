@@ -233,7 +233,7 @@ const getMatchesList = async (sportId) => {
     } catch (error) {
         console.error(" error:", error);
     } finally {
-        console.log("getMatchesList________________________>", { response }, response.length);
+        // console.log("getMatchesList________________________>", { response }, response.length);
         return response
     }
 };
@@ -270,7 +270,7 @@ const getMarketsOdds = async (sportId, eventIds) => {
     } catch (error) {
         console.error("error:", error);
     } finally {
-        console.log("getMarketsOdds________________________>", { response }, response.length);
+        // console.log("getMarketsOdds________________________>", { response }, response.length);
 
         return response;
     }

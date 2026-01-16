@@ -36,7 +36,7 @@ const postApi = async (args, payload, flag) => {
 
     if (flag == "market") [baseUrl] = getEnvVar(["THIRD_PARTY_URL"]);
     else if (flag == "fancy") [baseUrl] = getEnvVar(["THIRD_PARTY_FANCY_URL"]);
-    console.log(args, payload, flag, baseUrl);
+    // console.log(args, payload, flag, baseUrl);
     if (!baseUrl) throw new Error(`Base url not found`);
 
     url = `${baseUrl}/${args.join("/")}`;

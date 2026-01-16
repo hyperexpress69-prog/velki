@@ -29,7 +29,7 @@ const getMatchList = async (req, res) => {
     try {
         const { game_type } = req.query;
         if (!game_type) throw new ApiError(400, "game_type is requried");
-        console.log(game_type);
+        // console.log(game_type);
         const data = await getMatchesList(game_type);
         return res
             .status(200)

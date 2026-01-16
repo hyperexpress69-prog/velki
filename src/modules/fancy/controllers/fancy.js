@@ -27,9 +27,8 @@ const getBookMakerData = async (req, res) => {
     try {
         const { match_id } = req.query;
         if (!match_id) throw new ApiError(400, "match_id is requried");
-        console.log(match_id);
-        const data = convertBookMakerToTargetDS(match_id);
-
+        // console.log(match_id);
+        const data = await convertBookMakerToTargetDS(match_id);
         return res.status(200).send(new ApiResponse(200, "Fancy market fetched successfully.", data));
     } catch (error) {
         logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }));

@@ -1,47 +1,83 @@
-const { getCache, getCacheKeys } = require("../../../cache/redis");
+const { getCache, smembersCache } = require("../../../cache/redis");
 
-function convertFancyToTargetDS({
-    fancy,
-    eventId,
-    eventType
-}) {
-    return fancy.map(f => ({
-        eventType,
-        eventId,
-        marketId: Number(f.SelectionId),
-        marketType: f.gtype === "session" ? 1 : 0,
-        status: 2,
-        summaryStatus: 0,
-        sort: f.sr_no,
-        eventName: "", // MUST be passed externally if needed
-        marketName: f.RunnerName,
-        runsNo: f.LayPrice1,
-        runsYes: f.BackPrice1,
-        oddsNo: f.LayPrice1,
-        oddsYes: f.BackPrice1,
-        oddsVersion: undefined,
-        resultRuns: -1,
-        updateDate: undefined,
-        oddsSettingUpdateDate: undefined,
-        min: f.min,
-        max: f.max,
-        rebateRatio: 0,
-        delayBetting: 0,
-        remarkFirstRow: f.rem || "",
-        remarkSecondRow: f.rem || ""
-    }));
-}
+const convertFancyToTargetDS = async (eventId) => {
+    const result = [];
+
+    const eventInfo = await getCache(`EVENT:${eventId}:INFO`);
+    console.log(eventId, eventInfo);
+    // if (!eventInfo) return result;
+
+    const marketIds = await smembersCache(`EVENT:${eventId}:MARKETS`);
+    console.log(marketIds);
+    if (!marketIds?.length) return result;
+
+    for (const marketId of marketIds) {
+
+        const [
+            catalogue,
+            book,
+            settings
+        ] = await Promise.all([
+            getCache(`MARKET:${marketId}:CATALOGUE`),
+            getCache(`MARKET:${marketId}:BOOK`),
+            getCache(`MARKET:${marketId}:SETTINGS`)
+        ]);
+        console.log({ catalogue, book, settings });
+        if (!catalogue || !book) continue;
+
+        const yesRunner = book.runners?.find(r => r.side === "YES");
+        const noRunner = book.runners?.find(r => r.side === "NO");
+
+        const res = {
+            eventType: eventInfo?.eventTypeId,
+            eventId: Number(eventId),
+            marketId: Number(marketId),
+            marketType: catalogue.marketType,
+            status: book.status,
+            summaryStatus: 0,
+            sort: catalogue.sortPriority || 0,
+
+            eventName: eventInfo?.eventName,
+            marketName: catalogue.marketName,
+
+            runsNo: noRunner?.runs ?? 0,
+            runsYes: yesRunner?.runs ?? 0,
+
+            oddsNo: noRunner?.odds ?? 0,
+            oddsYes: yesRunner?.odds ?? 0,
+
+            oddsVersion: book.version || 0,
+            resultRuns: -1,
+
+            updateDate: book.updateTime || Date.now(),
+            oddsSettingUpdateDate: settings?.updatedAt || 0,
+
+            min: settings?.min || 0,
+            max: settings?.max || 0,
+            rebateRatio: settings?.rebateRatio || 0,
+            delayBetting: settings?.delayBetting || 0,
+
+            remarkFirstRow: "",
+            remarkSecondRow: ""
+        }
+
+        result.push(res);
+        console.log("res_____", res);
+    }
+    console.log(result);
+    return result;
+};
 
 
 const convertBookMakerToTargetDS = async (eventId) => {
     const target = { markets: {}, selections: {} };
-    console.log(target);
+    // console.log(target);
     const now = Date.now();
 
-    const marketIdsSet = await getCache(`EVENT:${eventId}:MARKETS`);
+    const marketIdsSet = await smembersCache(`EVENT:${eventId}:MARKETS`);
+    // console.log("marketIdsSet", marketIdsSet);
     if (!marketIdsSet || !marketIdsSet.length) return target;
 
-    console.log("marketIdsSet", marketIdsSet);
 
     for (const marketId of marketIdsSet) {
         const [marketMeta, marketBook] = await Promise.all([
@@ -51,21 +87,21 @@ const convertBookMakerToTargetDS = async (eventId) => {
 
         if (!marketMeta) continue;
 
-        console.log(marketMeta);
-        console.log(marketBook);
+        // console.log(marketMeta);
+        // console.log(marketBook);
 
         const eventMeta = await getCache(`EVENT:${eventId}:META`);
         if (!eventMeta) continue;
-        console.log(eventMeta);
+        // console.log(eventMeta);
 
         const fancy = await getCache(`EVENT:${eventId}:FANCY`);
         const bookmaker = await getCache(`EVENT:${eventId}:BOOKMAKER`);
-        console.log(fancy);
-        console.log(bookmaker);
+        // console.log("fancy", fancy);
+        // console.log("bookmaker", bookmaker);
 
         target.markets[marketId] = {
             marketId: marketId,
-            marketType: fancy.gtype === "session" ? 1 : 0,
+            marketType: fancy?.gtype === "session" ? 1 : 0,
             marketName: marketMeta.marketName || "Unknown",
             status: marketBook?.status === "OPEN" ? 1 : 2,
             summaryStatus: 0,
@@ -81,7 +117,7 @@ const convertBookMakerToTargetDS = async (eventId) => {
             eventName: eventMeta.event?.name || "Unknown",
             highlightMarketId: marketId
         };
-        console.log(target[marketId]);
+        // console.log(target[marketId]);
 
         const runners = marketMeta.runners || [];
         for (const runner of runners) {
@@ -104,7 +140,7 @@ const convertBookMakerToTargetDS = async (eventId) => {
             };
         }
     }
-    console.log(JSON.stringify(target));
+    // console.log(JSON.stringify(target));
     return target;
 };
 

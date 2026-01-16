@@ -10,7 +10,7 @@ const logger = createLogger("FANCY", "jsonl");
 
 const getSportsFancyData = async () => {
     try {
-        console.log("sport start", Date.now());
+        // console.log("sport start", Date.now());
         const [SPORTS_LIST_EP, LIST_COMPETITION_EP, LIST_EVENT_EP, LIST_MARKET_CATALOGUE_EP] = getEnvVar([
             "SPORTS_LIST_EP",
             "LIST_COMPETITION_EP",
@@ -77,7 +77,7 @@ const getSportsFancyData = async () => {
 
         await getMarketBookListData();
         await getFancyBookMakerOdds();
-        console.log("sport execution done", Date.now());
+        // console.log("sport execution done", Date.now());
         return true;
     } catch (err) {
         logger.error({ message: err.message, stack: err.stack });
@@ -204,7 +204,7 @@ const getSportsFancyData = async () => {
                 if (!s?.eventType?.id) return [];
 
                 const comp = await getApi([compListEP, s.eventType.id], "market");
-                console.log(`COMP for sport ${s.eventType.id}:`, comp.length);
+                // console.log(`COMP for sport ${s.eventType.id}:`, comp.length);
 
                 if (Array.isArray(comp)) {
                     await Promise.all(
@@ -295,7 +295,7 @@ const getMarketBookListData = async () => {
                 return resp.data || [];
             })
         )).flat();
-        console.log("book list data:", bookList.length);
+        // console.log("book list data:", bookList.length);
 
         return;
     } catch (error) {
@@ -313,7 +313,7 @@ const getFancyBookMakerOdds = async () => {
 
         const eventIdsKey = "FANCY_EVENT_IDS";
         const eventIds = await getCache(eventIdsKey);
-        console.log(JSON.stringify(eventIds));
+        // console.log(JSON.stringify(eventIds));
         if (!Array.isArray(eventIds) || !eventIds.length) throw new Error("no event ids found to fetch fancy and book maker data");
 
         const fancyBookData = await Promise.all(eventIds.map(async e => {

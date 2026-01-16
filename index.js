@@ -1,35 +1,59 @@
 const express = require("express");
 const dotenv = require("dotenv");
+const nodeCron = require('node-cron');
+const cors = require('cors');
 dotenv.config();
 
 const { createLogger } = require("./src/utils/logger");
 const { initializeRedis } = require("./src/cache/redis");
 const { getMarketInfo } = require("./src/modules/markets/services/marketData");
-const { matchRouter, fancyRouter } = require("./src/routes/index");
 const { getSportsFancyData } = require("./src/modules/fancy/services/fancyData");
+const { matchRouter, fancyRouter } = require("./src/routes/index");
 
 const port = process.env.PORT || 3000;
 const app = express();
 const logger = createLogger("SERVER");
 
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-(async () => {
+app.use((req, res, next) => {
+  logger.info(`Incoming Request: ${req.method} ${req.url}`);
+  next();
+});
+
+app.use("/v2/spb/match", matchRouter);
+app.use("/v2/spb/fancy", fancyRouter);
+
+const main = async () => {
+  logger.info("Initializing system services...");
   try {
-    await Promise.all([
+    const results = await Promise.allSettled([
       initializeRedis(),
       getMarketInfo(),
       getSportsFancyData()
     ]);
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        logger.error(`Service ${index} failed: ${result.reason}`);
+      } else {
+        logger.info(`Service ${index} initialized successfully`);
+      }
+    });
+
   } catch (error) {
-    console.error("error occured during starting server", error);
-    process.exit(1);
+    logger.error("Critical error during main initialization sequence", error);
   }
-})();
+};
 
-app.use("/v2/spb/match", matchRouter)
-app.use("/v2/spb/fancy", fancyRouter)
+app.listen(port, async () => {
+  logger.info(`Server successfully running on port: ${port}`);
+  await main();
+});
 
-
-app.listen(port, () => logger.info(`server running on port: ${port}`));
+nodeCron.schedule("*/10 * * * *", async () => {
+  logger.info("Running scheduled cron update...");
+  await main();
+});

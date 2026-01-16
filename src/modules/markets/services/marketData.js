@@ -8,7 +8,7 @@ const logger = createLogger("MARKET_ERROR", "jsonl");
 /* concurrent execution */
 const getMarketInfo = async () => {
   try {
-    console.log("getMarketInfo started", Date.now());
+    // console.log("getMarketInfo started", Date.now());
     const [sportId, compPoint, eventPoint, marketListPoint] = getEnvVar(["SPORT_ID", "COMPETITION_LIST_EP", "EVENTS_LIST_EP", "MARKET_LIST_EP"]);
 
     const competitions = await getApi([compPoint, sportId], "market");
@@ -69,13 +69,13 @@ const getMarketInfo = async () => {
       }));
     }));
 
-    console.log("sportEventIds_______________>", sportEventIds);
+    // console.log("sportEventIds_______________>", sportEventIds);
     if (sportEventIds.length) {
       await setCache(`SPORT_EVENTS:${sportId}`, sportEventIds);
     }
 
     await getMarketOdds(sportId);
-    console.log("getMarketInfo completed", Date.now());
+    // console.log("getMarketInfo completed", Date.now());
   } catch (error) {
     logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
   }
@@ -84,7 +84,7 @@ const getMarketInfo = async () => {
 const getMarketOdds = async (sportId) => {
   try {
     const allOdds = []
-    console.log("getMarketOdds started", Date.now());
+    // console.log("getMarketOdds started", Date.now());
     const [marketOddsPoint] = getEnvVar(["MARKET_ODDS_EP"]);
 
     const eventIds = await getCache(`SPORT_EVENTS:${sportId}`);
@@ -108,7 +108,7 @@ const getMarketOdds = async (sportId) => {
         }
       }));
     }));
-    console.log("getMarketOdds completed", Date.now());
+    // console.log("getMarketOdds completed", Date.now());
   } catch (error) {
     console.error("getMarketOdds error", error);
   }
@@ -118,7 +118,7 @@ const getMarketOdds = async (sportId) => {
 /* sequential execution 
 const getMarketInfo = async () => {
   try {
-    console.log("getMarketInfo started", Date.now());
+    // console.log("getMarketInfo started", Date.now());
     const [
       sportId,
       compPoint,
@@ -190,13 +190,13 @@ const getMarketInfo = async () => {
       }
     }
 
-    console.log("sportEventIds_______________>", sportEventIds);
+    // console.log("sportEventIds_______________>", sportEventIds);
     if (sportEventIds.length) {
       await setCache(`SPORT_EVENTS:${sportId}`, sportEventIds);
     }
 
     await getMarketOdds(sportId);
-    console.log("getMarketInfo completed", Date.now());
+    // console.log("getMarketInfo completed", Date.now());
   } catch (error) {
    logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
     }
@@ -204,7 +204,7 @@ const getMarketInfo = async () => {
 
 const getMarketOdds = async (sportId) => {
   try {
-    console.log("getMarketOdds started", Date.now());
+    // console.log("getMarketOdds started", Date.now());
     const [marketOddsPoint] = getEnvVar(["MARKET_ODDS_EP"]);
 
     const eventIds = await getCache(`SPORT_EVENTS:${sportId}`);
@@ -223,7 +223,7 @@ const getMarketOdds = async (sportId) => {
         await setCache(`MARKET_ODDS:${marketId}`, odds);
       }
     }
-    console.log("getMarketOdds completed", Date.now());
+    // console.log("getMarketOdds completed", Date.now());
   } catch (error) {
     console.error("getMarketOdds error", error);
   } finally {

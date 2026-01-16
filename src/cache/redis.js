@@ -94,7 +94,17 @@ const getCacheKeys = async (pattern = "*") => {
     const keys = await redisClient.keys(pattern);
     return keys;
   } catch (error) {
-    logger.error("Failed to get cache keys:", error.message);
+    logger.error(`Failed to get cache keys:${error.message}`);
+    return [];
+  }
+};
+
+const smembersCache = async (key) => {
+  if (!redisClient) await initializeRedis();
+  try {
+    return await redisClient.smembers(key); // gets all members of the set
+  } catch (error) {
+    logger.error(`Failed to get set members: ${error.message}`);
     return [];
   }
 };
@@ -138,5 +148,6 @@ module.exports = {
   incrementCache,
   clearRedisCache,
   getCacheKeys,
-  saddCache
+  saddCache,
+  smembersCache
 };
