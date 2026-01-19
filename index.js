@@ -32,7 +32,7 @@ const main = async () => {
     const results = await Promise.allSettled([
       initializeRedis(),
       getMarketInfo(),
-      getSportsFancyData()
+      getSportsFancyData(),
     ]);
 
     results.forEach((result, index) => {

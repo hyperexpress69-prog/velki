@@ -1,7 +1,8 @@
-const { setCache, getCache } = require("../../../cache/redis");
+const { setCache, getCache, saddCache, getCacheKeys } = require("../../../cache/redis");
 const { getEnvVar } = require("../../../utils/loadEnv");
 const { createLogger } = require("../../../utils/logger");
 const { getApi } = require("../../../utils/apiCaller");
+const { getMarketsOdds, getMatchesList } = require("./converter");
 
 const logger = createLogger("MARKET_ERROR", "jsonl");
 
@@ -23,9 +24,9 @@ const getMarketInfo = async () => {
       }
     }))
 
-    console.log(JSON.stringify(competitions));
-
-    const eventIds = [];
+    const inplayEventIds = [];
+    const todayEventIds = [];
+    const tomorrowEventIds = [];
 
     for (const [sportId, comp] of Object.entries(competitions)) {
 
@@ -37,7 +38,6 @@ const getMarketInfo = async () => {
         await Promise.all(events.map(async (e) => {
           const event = e.event;
           const eventType = e.eventType;
-
           let markets = await getApi([marketListEP, event.id], "market");
 
           if (!Array.isArray(markets) || !markets.length) return;
@@ -47,7 +47,6 @@ const getMarketInfo = async () => {
 
           for (const m of markets) {
             eventMarketIds.push(m.marketId);
-
             marketCacheOps.push(
               setCache(`MARKET:${m.marketId}`, {
                 ...m,
@@ -68,18 +67,46 @@ const getMarketInfo = async () => {
             setCache(`EVENT_MARKETS:${event.id}`, eventMarketIds)
           ]);
 
-          eventIds.push(event.id);
+          const marketDate = new Date(event.openDate);
+          const now = new Date();
+
+          const todayStart = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate()
+          ));
+
+          const tomorrowStart = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() + 1
+          ));
+
+          const dayAfterTomorrowStart = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() + 2
+          ));
+
+          if (marketDate >= todayStart && marketDate < tomorrowStart) {
+            todayEventIds.push(event.id);
+          } else if (marketDate >= tomorrowStart && marketDate < dayAfterTomorrowStart) {
+            tomorrowEventIds.push(event.id);
+          }
+
         }));
       }));
 
-      console.log("eventIds_______________>", eventIds);
-      if (eventIds.length) {
-        await setCache(`SPORT_EVENTS:${sportId}`, eventIds);
-      }
+      if (todayEventIds.length) await setCache(`SPORT_EVENTS:today:${sportId}`, todayEventIds);
+      if (tomorrowEventIds.length) await setCache(`SPORT_EVENTS:tomorrow:${sportId}`, tomorrowEventIds);
 
-      await getMarketOdds(sportId);
-      eventIds.length = 0;
+      await getMarketOdds(sportId, "in_play");
+      inplayEventIds.length = 0;
+      todayEventIds.length = 0;
+      tomorrowEventIds.length = 0;
     }
+
+    console.log({ todayEventIds, tomorrowEventIds });
 
     // console.log("getMarketInfo completed", Date.now());
   } catch (error) {
@@ -87,13 +114,13 @@ const getMarketInfo = async () => {
   }
 };
 
-const getMarketOdds = async (sportId) => {
+const getMarketOdds = async (sportId, type) => {
   try {
+    const inplayEventIds = new Set();
     const allOdds = []
-    // console.log("getMarketOdds started", Date.now());
     const [marketOddsPoint] = getEnvVar(["MARKET_ODDS_EP"]);
 
-    const eventIds = await getCache(`SPORT_EVENTS:${sportId}`);
+    const eventIds = await getCache(`SPORT_EVENTS:${type}:${sportId}`);
     if (!Array.isArray(eventIds)) return;
 
     await Promise.all(eventIds.map(async (eventId) => {
@@ -105,138 +132,67 @@ const getMarketOdds = async (sportId) => {
         if (!marketInfo) return;
 
         try {
-          const odds = await getApi([marketOddsPoint, eventId, marketId], "market");
+          let odds = await getApi([marketOddsPoint, eventId, marketId], "market");
           if (!odds) return;
           allOdds.push(odds);
           await setCache(`MARKET_ODDS:${marketId}`, odds);
+
+          if (odds?.data?.inplay) inplayEventIds.add(eventId);
+
+          winnerSId = odds?.data?.runners?.find(r => r.status == "WINNER")?.selectionId;
+          if (winnerSId) await setCache(`win:marketOdds:${eventId}:${marketId}`, winnerSId);
+
         } catch (error) {
           console.error("error occured to fetch marketOdds of:", marketId);
+          console.error(error)
         }
       }));
     }));
-    // console.log("getMarketOdds completed", Date.now());
-  } catch (error) {
-    console.error("getMarketOdds error", error);
-  }
-};
+    console.log("getMarketOdds completed", Date.now());
 
-
-/* sequential execution 
-const getMarketInfo = async () => {
-  try {
-    // console.log("getMarketInfo started", Date.now());
-    const [
-      sportId,
-      compPoint,
-      eventPoint,
-      marketListPoint
-    ] = getEnvVar([
-      "SPORT_ID",
-      "COMPETITION_LIST_EP",
-      "EVENTS_LIST_EP",
-      "MARKET_LIST_EP"
-    ]);
-
-    const competitions = await getApi([compPoint, sportId],"market");
-    if (!Array.isArray(competitions) || !competitions.length) return;
-
-    const eventIds = [];
-
-    for (const c of competitions) {
-      let events;
-
-      try {
-        events = await getApi([eventPoint, sportId, c.competition.id],"market");
-      } catch {
-        continue;
-      }
-
-      if (!Array.isArray(events)) continue;
-
-      for (const e of events) {
-        const event = e.event;
-        const eventType = e.eventType;
-
-        let markets;
-        try {
-          markets = await getApi([marketListPoint, event.id],"market");
-        } catch {
-          continue;
-        }
-
-        if (!Array.isArray(markets) || !markets.length) continue;
-
-        const eventMarketIds = [];
-        const marketCacheOps = [];
-
-        for (const m of markets) {
-          eventMarketIds.push(m.marketId);
-
-          marketCacheOps.push(
-            setCache(`MARKET:${m.marketId}`, {
-              ...m,
-              event,
-              competition: {
-                id: c.competition.id,
-                name: c.competition.name,
-                region: c.competitionRegion,
-                marketCount: c.marketCount
-              },
-              eventType
-            })
-          );
-        }
-
-        await Promise.all([
-          ...marketCacheOps,
-          setCache(`EVENT_MARKETS:${event.id}`, eventMarketIds)
-        ]);
-
-        eventIds.push(event.id);
-      }
+    if (inplayEventIds.size) {
+      await saddCache("SPORT_EVENTS:in_play", sportId);
+      await setCache(`SPORT_EVENTS:in_play:${sportId}`, [...inplayEventIds]);
     }
+    console.log(sportId, [...inplayEventIds]);
 
-    // console.log("eventIds_______________>", eventIds);
-    if (eventIds.length) {
-      await setCache(`SPORT_EVENTS:${sportId}`, eventIds);
-    }
-
-    await getMarketOdds(sportId);
-    // console.log("getMarketInfo completed", Date.now());
-  } catch (error) {
-   logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
-    }
-};
-
-const getMarketOdds = async (sportId) => {
-  try {
-    // console.log("getMarketOdds started", Date.now());
-    const [marketOddsPoint] = getEnvVar(["MARKET_ODDS_EP"]);
-
-    const eventIds = await getCache(`SPORT_EVENTS:${sportId}`);
-    if (!Array.isArray(eventIds)) return;
-
-    for (const eventId of eventIds) {
-      const marketIds = await getCache(`EVENT_MARKETS:${eventId}`);
-      if (!Array.isArray(marketIds)) continue;
-
-      for (const marketId of marketIds) {
-        const marketInfo = await getCache(`MARKET:${marketId}`);
-        if (!marketInfo) return;
-
-        const odds = await getApi([marketOddsPoint, eventId, marketId],"market");
-
-        await setCache(`MARKET_ODDS:${marketId}`, odds);
-      }
-    }
-    // console.log("getMarketOdds completed", Date.now());
+    await setMatchOddsList()
   } catch (error) {
     console.error("getMarketOdds error", error);
   } finally {
-    return
+    return;
   }
 };
-*/
+
+const setMatchOddsList = async () => {
+  try {
+    const spEvtLstkey = `SPORT_EVENTS:in_play:*`;
+    const resp = await getCacheKeys(spEvtLstkey);
+
+    const data = {};
+
+    if (Array.isArray(resp) && resp.length) {
+      await Promise.all(
+        resp.map(async (e) => {
+          const key = e.split(":")[2];
+          const value = await getCache(e);
+          data[key] = value;
+        })
+      );
+    }
+
+    for (const [sportId, eventIds] of Object.entries(data)) {
+      await getMatchesList(sportId, "in_play", "cron");
+      await getMarketsOdds(sportId, eventIds, "cron");
+    }
+
+  } catch (error) {
+    console.error("error occured during setmatchoddslist", error)
+  }
+  finally {
+    return;
+  }
+}
 
 module.exports = {
   getMarketInfo,

@@ -1,4 +1,3 @@
-const { getCache } = require("../../../cache/redis");
 const { ApiError } = require("../../../utils/apiError");
 const { ApiResponse } = require("../../../utils/apiResponse");
 const { createLogger } = require("../../../utils/logger");
@@ -12,7 +11,7 @@ const getFancyMarketData = async (req, res) => {
         const { match_id } = req.query;
         if (!match_id) throw new ApiError(400, "match_id is requried");
 
-        const data = convertFancyToTargetDS(match_id);
+        const data = await convertFancyToTargetDS(match_id);
 
         return res.status(200).send(new ApiResponse(200, "Fancy market fetched successfully.", data));
     } catch (error) {

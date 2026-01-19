@@ -31,7 +31,7 @@ const getSportsFancyData = async () => {
             )
         )).flat();
 
-        // await fs.writeFile("comp.json", JSON.stringify(competitions), "utf-8");
+        //  await fs.writeFile("comp.json", JSON.stringify(competitions), "utf-8");
 
         const events = (await Promise.all(
             competitions.map(c =>
@@ -40,7 +40,7 @@ const getSportsFancyData = async () => {
                     : []
             )
         )).flat();
-        // await fs.writeFile("events.json", JSON.stringify(events), "utf-8");
+        //  await fs.writeFile("events.json", JSON.stringify(events), "utf-8");
 
 
         await Promise.all(
@@ -58,7 +58,7 @@ const getSportsFancyData = async () => {
                     : []
             )
         )).flat();
-        // await fs.writeFile("cat.json", JSON.stringify(catalogues), "utf-8");
+        //  await fs.writeFile("cat.json", JSON.stringify(catalogues), "utf-8");
 
 
         await Promise.all(
@@ -77,9 +77,10 @@ const getSportsFancyData = async () => {
 
         await getMarketBookListData();
         await getFancyBookMakerOdds();
-        // console.log("sport execution done", Date.now());
+        console.log("sport execution done", Date.now());
         return true;
     } catch (err) {
+        console.error(err)
         logger.error({ message: err.message, stack: err.stack });
         throw err;
     }
@@ -100,7 +101,7 @@ const getMarketBookListData = async () => {
         )
     )).flat();
 
-    // await fs.writeFile("books.json", JSON.stringify(books), "utf-8");
+    //  await fs.writeFile("books.json", JSON.stringify(books), "utf-8");
 
 
     await Promise.all(
@@ -126,7 +127,7 @@ const getFancyBookMakerOdds = async () => {
         )
     );
 
-    // await fs.writeFile("fancy.json", JSON.stringify(responses), "utf-8");
+    //  await fs.writeFile("fancy.json", JSON.stringify(responses), "utf-8");
 
     await Promise.all(
         responses.map(({ eventId, resp }) => {

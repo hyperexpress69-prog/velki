@@ -1,4 +1,5 @@
-const { getCache } = require("../../../cache/redis");
+const { type } = require("express/lib/response");
+const { getCache, getCacheKeys } = require("../../../cache/redis");
 const { ApiError } = require("../../../utils/apiError");
 const { ApiResponse } = require("../../../utils/apiResponse");
 const { createLogger } = require("../../../utils/logger");
@@ -9,13 +10,26 @@ const logger = createLogger("match_api", "jsonl");
 const getMatchCount = async (req, res) => {
     try {
 
-        const { game_type } = req.query;
-        if (!game_type) throw new ApiError(400, "game_type is requried");
-        const opnMidsKey = `OPEN_MARKETS:${game_type}`;
+        const { type } = req.query;
+        if (!type) throw new ApiError(400, "type is requried");
+        const spEvtLstkey = `SPORT_EVENTS:${type}:*`;
+        const resp = await getCacheKeys(spEvtLstkey);
 
-        const data = {
-            cricketInplayCount: await getCache(opnMidsKey)?.length || 0,
+        const data = {};
+
+        if (Array.isArray(resp) && resp.length) {
+            await Promise.all(
+                resp.map(async (e) => {
+                    let key = e.split(":")[2];
+                    const value = await getCache(e);
+                    if (key == 4) key = "cricketInplayCount";
+                    else if (key == 1) key = "soccerInplayCount";
+                    else if (key == 2) key = "tennisInplayCount"
+                    data[key] = value?.length || 0;
+                })
+            );
         }
+
         return res.status(200).send(new ApiResponse(200, "Match List fetched successfully.", data));
     } catch (error) {
         logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }));
@@ -27,13 +41,12 @@ const getMatchCount = async (req, res) => {
 
 const getMatchList = async (req, res) => {
     try {
-        const { game_type } = req.query;
-        if (!game_type) throw new ApiError(400, "game_type is requried");
-        // console.log(game_type);
-        const data = await getMatchesList(game_type);
+        const { game_type, type } = req.query;
+        if (!game_type || !type) throw new ApiError(400, "game_type and type is requried");
+        const matches = await getMatchesList(game_type, type, "");
         return res
             .status(200)
-            .send(new ApiResponse(200, "Matches list fetched successfully", data));
+            .send(new ApiResponse(200, "Matches list fetched successfully", { matches }));
     } catch (error) {
         logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
         console.error(error, "internal server error");
@@ -46,9 +59,10 @@ const getMatchList = async (req, res) => {
 
 const getMatchOdds = async (req, res) => {
     try {
-        const { game_type, match_ids } = req.query;
+        const { game_type = 4, match_ids } = req.query;
         if (!game_type || !match_ids) throw new ApiError(400, "game_type and match_ids are requried fields");
-        const data = await getMarketsOdds(game_type, match_ids.split(","));
+        const data = await getMarketsOdds(game_type, match_ids.split(","), "");
+
         return res
             .status(200)
             .send(new ApiResponse(200, "Markets Odds fetched successfully", data));

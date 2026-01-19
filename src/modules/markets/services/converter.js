@@ -1,4 +1,4 @@
-const { getCache } = require("../../../cache/redis");
+const { getCache, setCache } = require("../../../cache/redis");
 
 const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
     const event = marketInfo?.event;
@@ -38,7 +38,6 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
     const market = {
         marketId: marketInfo.marketId,
         marketName: marketInfo.marketName,
-        // marketType: marketInfo.marketName.toUpperCase().replace(/\s+/g, "_"),
         selections
     };
 
@@ -62,7 +61,33 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
         countryCode: event.countryCode,
         competitionId: Number(competition.id),
         competitionName: competition.name,
-        market
+        markets: [market],
+        market,
+        // dummy data
+        isManualEvent: false,
+        isManualEventClosed: false,
+        status: 4,
+        scores: null,
+        streamingChannel: 19637118,
+        lmtMatchId: null,
+        scoresDetail: null,
+        matchInfo: null,
+        timeElapsed: 0,
+        inPlayStatus: null,
+        closeSite: null,
+        competitionCloseSite: null,
+        linkEventId: null,
+        updateDate: 1768263702327,
+        isElectronic: 0,
+        timezone: "GMT",
+        hasFancyBetMarkets: true,
+        hasInPlayFancyBetMarkets: true,
+        hasBookMakerMarkets: true,
+        hasInPlayBookMakerMarkets: true,
+        hasSportsBookMarkets: true,
+        sportradarApiSiteEventId: "",
+        hasOwSportsBookMarkets: true,
+        hasGeniusSportsMarkets: true,
     };
 
     if (event.timezone) response.timezone = event.timezone;
@@ -83,7 +108,11 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
         response.openDateDayOfWeek = new Date(response.openDate).getDay()
         response.secondsToStart = Math.max(0, Math.floor((openTime - now) / 1000));
     }
-    if (typeof liveData.inplay === "boolean") response.inPlay = liveData.inplay ? 1 : 0;
+    if (typeof liveData.inplay === "boolean") response.isInPlay = liveData.inplay ? 1 : 0;
+
+    response.status = 4;
+    response.priority = Math.floor(Math.random() * 1000);
+    response.id = response.eventId + response.priority;
 
     return response;
 };
@@ -198,14 +227,15 @@ const safeParseArray = (v) => {
     return [];
 };
 
-const getMatchesList = async (sportId) => {
-    const response = [];
+const getMatchesList = async (sportId, type, flag) => {
+    const eventMap = new Map();
+
     try {
-        const eventIdsRaw = await getCache(`SPORT_EVENTS:${sportId}`);
-        const eventIds = safeParseArray(eventIdsRaw);
+        const eventIdsRaw = await getCache(`SPORT_EVENTS:${type}:${sportId}`);
+        let eventIds = safeParseArray(eventIdsRaw);
 
+        eventIds = [...new Set(eventIds)];
         if (!eventIds.length) return [];
-
 
         await Promise.all(
             eventIds.map(async (eventId) => {
@@ -215,31 +245,41 @@ const getMatchesList = async (sportId) => {
 
                 await Promise.all(
                     marketIds.map(async (marketId) => {
-                        const marketInfo = await getCache(`MARKET:${marketId}`);
-                        const marketData = await getCache(`MARKET_ODDS:${marketId}`);
-                        if (!marketInfo || !marketData) return;
+                        const marketInfoRaw = await getCache(`MARKET:${marketId}`);
+                        const marketDataRaw = await getCache(`MARKET_ODDS:${marketId}`);
+                        if (!marketInfoRaw || !marketDataRaw) return;
 
-                        let converted = convertToMatchListStructure(
-                            sportId,
-                            typeof marketInfo === "string" ? JSON.parse(marketInfo) : marketInfo,
-                            typeof marketData === "string" ? JSON.parse(marketData) : marketData
-                        );
-                        if (converted) response.push(converted);
+                        const marketInfo = typeof marketInfoRaw === "string" ? JSON.parse(marketInfoRaw) : marketInfoRaw;
+
+                        const marketData = typeof marketDataRaw === "string" ? JSON.parse(marketDataRaw) : marketDataRaw;
+
+                        const converted = convertToMatchListStructure(sportId, marketInfo, marketData);
+
+                        if (!converted) return;
+
+                        // 🔑 GROUP BY EVENT
+                        if (!eventMap.has(eventId)) {
+                            eventMap.set(eventId, { ...converted, markets: [] });
+                        }
+
+                        eventMap.get(eventId).markets.push(converted.market);
+
+                        if (flag === "cron") {
+                            await setCache(`MATCH_LIST_RES:${eventId}:${marketId}`, converted);
+                        }
                     })
                 );
             })
         );
 
     } catch (error) {
-        console.error(" error:", error);
-    } finally {
-        // console.log("getMatchesList________________________>", { response }, response.length);
-        return response
+        console.error("error:", error);
     }
+    return [...eventMap.values()];
 };
 
 
-const getMarketsOdds = async (sportId, eventIds) => {
+const getMarketsOdds = async (sportId = 4, eventIds, flag) => {
     const response = [];
     try {
         if (!Array.isArray(eventIds) || !eventIds.length) throw new Error("empty event ids array");
@@ -262,16 +302,16 @@ const getMarketsOdds = async (sportId, eventIds) => {
                             typeof marketInfo === "string" ? JSON.parse(marketInfo) : marketInfo,
                             typeof marketData === "string" ? JSON.parse(marketData) : marketData
                         );
-                        if (converted) response.push(converted);
+                        if (converted) {
+                            response.push(converted);
+                            if (flag == "cron") await setCache(`MARKET_ODDS_RES:${eventId}:${marketId}`, converted)
+                        }
                     }));
             }));
-
 
     } catch (error) {
         console.error("error:", error);
     } finally {
-        // console.log("getMarketsOdds________________________>", { response }, response.length);
-
         return response;
     }
 }

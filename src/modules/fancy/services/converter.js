@@ -3,68 +3,51 @@ const { getCache, smembersCache } = require("../../../cache/redis");
 const convertFancyToTargetDS = async (eventId) => {
     const result = [];
 
-    const eventInfo = await getCache(`EVENT:${eventId}:INFO`);
-    console.log(eventId, eventInfo);
-    // if (!eventInfo) return result;
+    const eventInfo = await getCache(`EVENT:${eventId}:META`);
+    const eventFancyData = await getCache(`EVENT:${eventId}:FANCY`)
+    if (!eventInfo) return result;
 
     const marketIds = await smembersCache(`EVENT:${eventId}:MARKETS`);
-    console.log(marketIds);
     if (!marketIds?.length) return result;
 
     for (const marketId of marketIds) {
 
-        const [
-            catalogue,
-            book,
-            settings
-        ] = await Promise.all([
-            getCache(`MARKET:${marketId}:CATALOGUE`),
-            getCache(`MARKET:${marketId}:BOOK`),
-            getCache(`MARKET:${marketId}:SETTINGS`)
+        const [catalogue, book] = await Promise.all([
+            getCache(`MARKET:${marketId}:META`),
+            getCache(`MARKET:${marketId}:BOOK`)
         ]);
-        console.log({ catalogue, book, settings });
+
         if (!catalogue || !book) continue;
 
-        const yesRunner = book.runners?.find(r => r.side === "YES");
-        const noRunner = book.runners?.find(r => r.side === "NO");
+        catalogue.runners.forEach(r => {
+            const fancy = Array.isArray(eventFancyData) && eventFancyData.length ? eventFancyData.find(f => f.RunnerName == catalogue.marketName) : {};
+            result.push({
+                eventType: catalogue.eventType.id ?? 0,
+                eventId: (eventInfo.event.id),
+                marketId: r.selectionId || 1,
+                marketType: catalogue.marketType || 1,
+                status: book.status,
+                summaryStatus: 0,
+                sort: r.sortPriority || 0,
 
-        const res = {
-            eventType: eventInfo?.eventTypeId,
-            eventId: Number(eventId),
-            marketId: Number(marketId),
-            marketType: catalogue.marketType,
-            status: book.status,
-            summaryStatus: 0,
-            sort: catalogue.sortPriority || 0,
+                eventName: eventInfo.eventName,
+                marketName: catalogue.marketName,
 
-            eventName: eventInfo?.eventName,
-            marketName: catalogue.marketName,
+                runsNo: fancy?.BackPrice1 ?? 0,
+                runsYes: fancy?.LayPrice1 ?? 0,
 
-            runsNo: noRunner?.runs ?? 0,
-            runsYes: yesRunner?.runs ?? 0,
+                oddsNo: fancy?.BackSize1 ?? 0,
+                oddsYes: fancy?.LaySize1 ?? 0,
 
-            oddsNo: noRunner?.odds ?? 0,
-            oddsYes: yesRunner?.odds ?? 0,
+                oddsVersion: book.version || 0,
+                resultRuns: -1,
 
-            oddsVersion: book.version || 0,
-            resultRuns: -1,
-
-            updateDate: book.updateTime || Date.now(),
-            oddsSettingUpdateDate: settings?.updatedAt || 0,
-
-            min: settings?.min || 0,
-            max: settings?.max || 0,
-            rebateRatio: settings?.rebateRatio || 0,
-            delayBetting: settings?.delayBetting || 0,
-
-            remarkFirstRow: "",
-            remarkSecondRow: ""
-        }
-
-        result.push(res);
-        console.log("res_____", res);
+                min: fancy.min || 10,
+                max: fancy.max || 1000,
+                delayBetting: book.betDelay,
+            });
+        });
     }
-    console.log(result);
     return result;
 };
 
