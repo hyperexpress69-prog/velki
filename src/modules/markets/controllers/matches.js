@@ -51,20 +51,52 @@ const getMatchCount = async (req, res) => {
 const getMatchList = async (req, res) => {
     try {
         const { game_type, type } = req.query;
-        if (!game_type || !type) throw new ApiError(400, "game_type and type is requried");
-        const matches = await getMatchesList(game_type, type, "");
-        return res
-            .status(200)
-            .send(new ApiResponse(200, "Matches list fetched successfully", { matches }));
-    } catch (error) {
-        logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
-        console.error(error, "internal server error");
+        if (!game_type || !type) {
+            throw new ApiError(400, "game_type and type is required");
+        }
 
-        return res
-            .status(error.status || 500)
-            .send(new ApiError(error.status, error.message || "internal server error",))
+        let matches = [];
+
+        if (game_type === "all") {
+            const spEvtLstkey = `SPORT_EVENTS:${type}:*`;
+            const keys = await getCacheKeys(spEvtLstkey);
+
+            if (Array.isArray(keys) && keys.length) {
+                const results = await Promise.all(
+                    keys.map(async (key) => {
+                        const parts = key.split(":");
+                        const sportId = parts[2];
+                        return await getMatchesList(sportId, type, "");
+                    })
+                );
+
+                results.forEach((mList) => {
+                    if (mList && mList.length) {
+                        matches.push(...mList);
+                    }
+                });
+            }
+        } else {
+            const mList = await getMatchesList(game_type, type, "");
+            if (mList && mList.length) {
+                matches.push(...mList);
+            }
+        }
+        console.log(matches.length);
+        return res.status(200).send(new ApiResponse(200, "Matches list fetched successfully", { matches }));
+
+    } catch (error) {
+        logger.error(JSON.stringify({
+            at: Date.now(),
+            message: error.message || "internal server error"
+        }));
+
+        return res.status(error.status || 500).send(
+            new ApiError(error.status || 500, error.message || "internal server error")
+        );
     }
-}
+};
+
 
 const getMatchOdds = async (req, res) => {
     try {
@@ -73,7 +105,7 @@ const getMatchOdds = async (req, res) => {
         const data = await getMarketsOdds(game_type, match_ids.split(","), "");
         return res
             .status(200)
-            .send(new ApiResponse(200, "Markets Odds fetched successfully", data ? data : marketOdds[game_type]));
+            .send(new ApiResponse(200, "Markets Odds fetched successfully", data));
     } catch (error) {
         logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
         console.error(error, "internal server error");
