@@ -32,8 +32,8 @@ const main = async () => {
   try {
     const results = await Promise.allSettled([
       initializeRedis(),
-      getMarketInfo(),
-      // getSportsFancyData(),
+      // getMarketInfo(),
+      getSportsFancyData(),
       runJobs()
     ]);
 

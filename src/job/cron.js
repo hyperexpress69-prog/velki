@@ -1,8 +1,10 @@
 const { default: nodeCron } = require("node-cron");
-const { getOddsHandler } = require("../modules/markets/services/cronHandlers");
+const { getOddsHandler } = require("../modules/markets/services/handlers");
+const { getMarketBookListData, getFancyBookMakerOdds } = require("../modules/fancy/services/handlers");
 
 async function runJobs() {
-    nodeCron.schedule("*/2 * * * * *", getOddsHandler)
+    let twoSecHandlers = [getOddsHandler, getMarketBookListData, getFancyBookMakerOdds];
+    twoSecHandlers.forEach(handler => nodeCron.schedule("*/2 * * * * *", handler))
 }
 
 module.exports = { runJobs }

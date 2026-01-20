@@ -3,6 +3,7 @@ const { getEnvVar } = require("../../../utils/loadEnv");
 const { getApi } = require("../../../utils/apiCaller");
 
 const getOddsHandler = async () => {
+    console.log("getOddsHandler called", Date.now());
     try {
         const type = "in_play";
         const spEvtLstkey = `SPORT_EVENTS:${type}:*`;
@@ -14,18 +15,18 @@ const getOddsHandler = async () => {
                     const parts = e.split(":");
                     let key = parts[2];
                     const value = await getCache(e);
-                    // console.log(e, value);
 
                     const [marketOddsPoint] = getEnvVar(["MARKET_ODDS_EP"]);
                     if (!marketOddsPoint) return;
-                    if (!Array.isArray(value) && value.length) return;
+                    if (!Array.isArray(value) || !value.length) return;
 
-                    value.map(async e => {
-                        const marketIds = await getCache(`EVENT_MARKETS:${e}`);
+                    value.map(async ev => {
+                        const marketIds = await getCache(`EVENT_MARKETS:${ev}`);
+
                         if (!Array.isArray(marketIds)) return;
 
                         marketIds.map(async m => {
-                            let odds = await getApi([marketOddsPoint, e, m], "market");
+                            let odds = await getApi([marketOddsPoint, ev, m], "market");
                             if (!odds) return;
                             if (Array.isArray(odds) && odds.length == 0) {
                                 return;
@@ -42,7 +43,7 @@ const getOddsHandler = async () => {
         }
 
     } catch (error) {
-        console.error("error occured", error);
+        console.error("error occured in getOddsHandler:", error);
     }
 }
 
