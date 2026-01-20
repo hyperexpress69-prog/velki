@@ -19,7 +19,12 @@ const getSportsFancyData = async () => {
         ]);
 
         const sportsList = await getApi([SPORTS_LIST_EP], "market");
-        if (!Array.isArray(sportsList)) throw new Error("Invalid sports list");
+        const isInvalid =
+            sportsList == null ||
+            (typeof sportsList === "object" &&
+                !Array.isArray(sportsList) &&
+                Object.keys(sportsList).length === 0);
+        if (isInvalid) throw new Error("Invalid sports list");
 
         // await fs.writeFile("sportsList.json", JSON.stringify(sportsList), "utf-8");
 

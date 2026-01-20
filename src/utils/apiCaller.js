@@ -25,7 +25,7 @@ const getApi = async (args, flag) => {
     //   message: error.message || "internal server error",
     // }));
     // console.error(error);
-    return []
+    return [];
   }
 };
 

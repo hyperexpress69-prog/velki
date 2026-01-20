@@ -9,7 +9,7 @@ const logger = createLogger("MARKET_ERROR", "jsonl");
 /* concurrent execution */
 const getMarketInfo = async () => {
   try {
-    // console.log("getMarketInfo started", Date.now());
+    console.log("getMarketInfo started", Date.now());
     const [sportsEP, compEP, eventEP, marketListEP] = getEnvVar(["SPORTS_LIST_EP", "COMPETITION_LIST_EP", "EVENTS_LIST_EP", "MARKET_LIST_EP"]);
 
     const sportsList = await getApi([sportsEP], "market");
@@ -24,7 +24,6 @@ const getMarketInfo = async () => {
       }
     }))
 
-    const inplayEventIds = [];
     const todayEventIds = [];
     const tomorrowEventIds = [];
 
@@ -66,7 +65,6 @@ const getMarketInfo = async () => {
             ...marketCacheOps,
             setCache(`EVENT_MARKETS:${event.id}`, eventMarketIds)
           ]);
-
           const marketDate = new Date(event.openDate);
           const now = new Date();
 
@@ -100,15 +98,16 @@ const getMarketInfo = async () => {
       if (todayEventIds.length) await setCache(`SPORT_EVENTS:today:${sportId}`, todayEventIds);
       if (tomorrowEventIds.length) await setCache(`SPORT_EVENTS:tomorrow:${sportId}`, tomorrowEventIds);
 
-      await getMarketOdds(sportId, "in_play");
-      inplayEventIds.length = 0;
+      console.log({ todayEventIds, tomorrowEventIds });
+      //  this must always be set to "today"
+      await getMarketOdds(sportId, "today");
+
       todayEventIds.length = 0;
       tomorrowEventIds.length = 0;
     }
 
-    console.log({ todayEventIds, tomorrowEventIds });
 
-    // console.log("getMarketInfo completed", Date.now());
+    console.log("getMarketInfo completed", Date.now());
   } catch (error) {
     logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
   }
@@ -116,8 +115,8 @@ const getMarketInfo = async () => {
 
 const getMarketOdds = async (sportId, type) => {
   try {
+    let inplayType = "in_play";
     const inplayEventIds = new Set();
-    const allOdds = []
     const [marketOddsPoint] = getEnvVar(["MARKET_ODDS_EP"]);
 
     const eventIds = await getCache(`SPORT_EVENTS:${type}:${sportId}`);
@@ -134,13 +133,15 @@ const getMarketOdds = async (sportId, type) => {
         try {
           let odds = await getApi([marketOddsPoint, eventId, marketId], "market");
           if (!odds) return;
-          allOdds.push(odds);
+          if (Array.isArray(odds) && odds.length == 0) {
+            return;
+          } else if (typeof odds === "object" && Object.keys(odds.data).length === 0) {
+            return
+          }
+
           await setCache(`MARKET_ODDS:${marketId}`, odds);
 
           if (odds?.data?.inplay) inplayEventIds.add(eventId);
-
-          winnerSId = odds?.data?.runners?.find(r => r.status == "WINNER")?.selectionId;
-          if (winnerSId) await setCache(`win:marketOdds:${eventId}:${marketId}`, winnerSId);
 
         } catch (error) {
           console.error("error occured to fetch marketOdds of:", marketId);
@@ -148,15 +149,15 @@ const getMarketOdds = async (sportId, type) => {
         }
       }));
     }));
-    console.log("getMarketOdds completed", Date.now());
 
     if (inplayEventIds.size) {
-      await saddCache("SPORT_EVENTS:in_play", sportId);
-      await setCache(`SPORT_EVENTS:in_play:${sportId}`, [...inplayEventIds]);
+      await saddCache(`SPORT_EVENTS:${inplayType}`, sportId);
+      await setCache(`SPORT_EVENTS:${inplayType}:${sportId}`, [...inplayEventIds]);
     }
-    console.log(sportId, [...inplayEventIds]);
+    console.log("____________>", sportId, [...inplayEventIds]);
 
     await setMatchOddsList()
+    console.log("getMarketOdds completed", Date.now());
   } catch (error) {
     console.error("getMarketOdds error", error);
   } finally {
@@ -168,7 +169,6 @@ const setMatchOddsList = async () => {
   try {
     const spEvtLstkey = `SPORT_EVENTS:in_play:*`;
     const resp = await getCacheKeys(spEvtLstkey);
-
     const data = {};
 
     if (Array.isArray(resp) && resp.length) {
@@ -185,6 +185,7 @@ const setMatchOddsList = async () => {
       await getMatchesList(sportId, "in_play", "cron");
       await getMarketsOdds(sportId, eventIds, "cron");
     }
+    console.log("setMatchOdds done", Date.now());
 
   } catch (error) {
     console.error("error occured during setmatchoddslist", error)

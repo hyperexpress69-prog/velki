@@ -1,4 +1,3 @@
-const { type } = require("express/lib/response");
 const { getCache, getCacheKeys } = require("../../../cache/redis");
 const { ApiError } = require("../../../utils/apiError");
 const { ApiResponse } = require("../../../utils/apiResponse");
@@ -15,17 +14,27 @@ const getMatchCount = async (req, res) => {
         const spEvtLstkey = `SPORT_EVENTS:${type}:*`;
         const resp = await getCacheKeys(spEvtLstkey);
 
-        const data = {};
+        const data = {
+            cricketInplayCount: 0,
+            soccerInplayCount: 0,
+            tennisInplayCount: 0
+        };
 
         if (Array.isArray(resp) && resp.length) {
             await Promise.all(
                 resp.map(async (e) => {
-                    let key = e.split(":")[2];
+                    const parts = e.split(":");
+                    let key = parts[2];
                     const value = await getCache(e);
-                    if (key == 4) key = "cricketInplayCount";
-                    else if (key == 1) key = "soccerInplayCount";
-                    else if (key == 2) key = "tennisInplayCount"
-                    data[key] = value?.length || 0;
+                    // console.log(e, value);
+                    // Map keys and assign values
+                    if (key === "4") {
+                        data.cricketInplayCount = value?.length || 0;
+                    } else if (key === "1") {
+                        data.soccerInplayCount = value?.length || 0;
+                    } else if (key === "2") {
+                        data.tennisInplayCount = value?.length || 0;
+                    }
                 })
             );
         }
@@ -62,10 +71,9 @@ const getMatchOdds = async (req, res) => {
         const { game_type = 4, match_ids } = req.query;
         if (!game_type || !match_ids) throw new ApiError(400, "game_type and match_ids are requried fields");
         const data = await getMarketsOdds(game_type, match_ids.split(","), "");
-
         return res
             .status(200)
-            .send(new ApiResponse(200, "Markets Odds fetched successfully", data));
+            .send(new ApiResponse(200, "Markets Odds fetched successfully", data ? data : marketOdds[game_type]));
     } catch (error) {
         logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }))
         console.error(error, "internal server error");

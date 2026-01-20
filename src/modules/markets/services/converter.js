@@ -9,6 +9,7 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
     if (!event || !competition || !liveData) return null;
     if (!Array.isArray(liveData.runners) || liveData.runners.length === 0) return null;
 
+    if (marketInfo.marketName !== "Match Odds") return null
     const toTimestamp = (d) => new Date(d).getTime();
 
     const selections = runnersInfo.map(runner => {
@@ -28,17 +29,58 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
         if (liveRunner.status) sel.status = liveRunner.status === "ACTIVE" ? 1 : 0;
         if (liveRunner.ex?.availableToBack?.length) sel.availableToBack = liveRunner.ex.availableToBack;
         if (liveRunner.ex?.availableToLay?.length) sel.availableToLay = liveRunner.ex.availableToLay;
-        if (liveRunner.ex?.tradedVolume?.length) sel.tradedVolume = liveRunner.ex.tradedVolume;
+        if (liveRunner.ex?.tradedVolume?.length) sel.tradedVolume = [];
+        // if (liveRunner.ex?.tradedVolume?.length) sel.tradedVolume = liveRunner.ex.tradedVolume;
 
         return sel;
     }).filter(Boolean);
 
     if (!selections.length) return null;
 
+    // const market = {
+    //     marketId: marketInfo.marketId,
+    //     marketName: marketInfo.marketName,
+    //     selections,
+
+    // };
+
     const market = {
         marketId: marketInfo.marketId,
         marketName: marketInfo.marketName,
-        selections
+        selections,
+        "eventType": eventType,
+        "eventId": event.id,
+        "marketType": "",
+        "bettingType": 1,
+        "countryCode": null,
+        "marketType": "MATCH_ODDS",
+        "status": 1,
+        "summaryStatus": 0,
+        "isHighLight": 1,
+        "inPlay": 1,
+        "totalMatched": 3222997.13,
+        "totalMatchedInUSD": 11666.06,
+        "numberOfRunners": 2,
+        "numberOfWinners": 1,
+        "numberOfActiveRunners": 2,
+        "marketTime": "2026-01-20 04:30",
+        "marketTimeStr": "20 Jan, 04:30",
+        "marketDateTime": 1768883400000,
+        "openDateDayOfWeek": "Tue",
+        "updateDate": "2026-01-20T15:07:15.010+0800",
+        "version": 7099624057,
+        "closeSite": null,
+        "bookMode": "[\"6\"]",
+        "disableBettingSite": "[\"6\", \"14\"]",
+        "autoDisableBettingSite": null,
+        "isLowLiquidity": true,
+        "isStreamingOpenTime": 1,
+        "streamingChannel": "0",
+        "isStreamingBoxOff": false,
+        "betLimitSetting": {
+            "minBet": 100,
+            "maxBet": 30000
+        },
     };
 
     if (liveData.status) market.status = liveData.status === "OPEN" ? 1 : 0;
@@ -118,13 +160,18 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
 };
 
 const convertToMatchOddsStructure = (eventType, marketInfo, marketData) => {
-    if (!marketInfo || !marketData?.data) return null;
-
-    const { event, competition, runners = [], marketId, marketName } = marketInfo;
+    if (!marketInfo || !marketData?.data) {
+        // console.log({ marketInfo, marketData });
+        console.log("return from line 1");
+        return null
+    };
+    const { event, runners = [], marketId, marketName } = marketInfo;
     const live = marketData.data;
 
-    if (!event || !live) return null;
-
+    if (!event || !live) {
+        console.log("return from line 2");
+        return null
+    };
     const toTimestamp = (d) => new Date(d).getTime();
     const nowISO = new Date().toISOString();
 
@@ -139,7 +186,13 @@ const convertToMatchOddsStructure = (eventType, marketInfo, marketData) => {
             selectionKey: `${runner.selectionId}_${runner.handicap ?? 0}_00`,
             runnerName: runner.runnerName,
             originalRunnerName: runner.runnerName,
-            sortPriority: runner.sortPriority
+            sortPriority: runner.sortPriority,
+            // defaults/static
+            closeSite: null,
+            suspendSite: null,
+            bookMode: null,
+            bookSuspend: null,
+            isAutoSuspend: 0
         };
 
         if (liveRunner?.status) {
@@ -170,10 +223,26 @@ const convertToMatchOddsStructure = (eventType, marketInfo, marketData) => {
         eventType: Number(eventType),
         eventId: Number(event.id),
         marketId,
-        // marketType: marketName.toUpperCase().replace(/\s+/g, "_"),
+        marketType: marketName.toUpperCase().replace(/\s+/g, "_"),
         bettingType: 1,
         countryCode: event.countryCode,
-        marketName
+        marketName,
+        // defaults/static
+        summaryStatus: 0,
+        isHighLight: 1,
+        totalMatchedInUSD: null,
+        closeSite: null,
+        bookMode: null,
+        disableBettingSite: null,
+        autoDisableBettingSite: null,
+        isLowLiquidity: false,
+        isStreamingOpenTime: 0,
+        streamingChannel: "0",
+        isStreamingBoxOff: false,
+        betLimitSetting: {
+            minBet: 100,
+            maxBet: 30000
+        }
     };
 
     if (live.status) market.status = live.status === "OPEN" ? 1 : 0;
@@ -249,8 +318,14 @@ const getMatchesList = async (sportId, type, flag) => {
                         const marketDataRaw = await getCache(`MARKET_ODDS:${marketId}`);
                         if (!marketInfoRaw || !marketDataRaw) return;
 
-                        const marketInfo = typeof marketInfoRaw === "string" ? JSON.parse(marketInfoRaw) : marketInfoRaw;
+                        const isInvalid =
+                            marketDataRaw == null ||
+                            (typeof marketDataRaw === "object" &&
+                                !Array.isArray(marketDataRaw) &&
+                                Object.keys(marketDataRaw).length === 0);
+                        if (isInvalid) return;
 
+                        const marketInfo = typeof marketInfoRaw === "string" ? JSON.parse(marketInfoRaw) : marketInfoRaw;
                         const marketData = typeof marketDataRaw === "string" ? JSON.parse(marketDataRaw) : marketDataRaw;
 
                         const converted = convertToMatchListStructure(sportId, marketInfo, marketData);
@@ -288,6 +363,7 @@ const getMarketsOdds = async (sportId = 4, eventIds, flag) => {
             eventIds.map(async (eventId) => {
                 const marketIdsRaw = await getCache(`EVENT_MARKETS:${eventId}`);
                 const marketIds = safeParseArray(marketIdsRaw);
+
                 if (!marketIds.length) return;
 
                 await Promise.all(
@@ -295,13 +371,14 @@ const getMarketsOdds = async (sportId = 4, eventIds, flag) => {
 
                         const marketInfo = await getCache(`MARKET:${marketId}`);
                         const marketData = await getCache(`MARKET_ODDS:${marketId}`);
-                        if (!marketInfo || !marketData) return;
+                        if (!marketInfo || !marketData || !/^match\s*odds$/i.test(marketInfo?.marketName)) return;
 
                         let converted = convertToMatchOddsStructure(
                             sportId,
                             typeof marketInfo === "string" ? JSON.parse(marketInfo) : marketInfo,
                             typeof marketData === "string" ? JSON.parse(marketData) : marketData
                         );
+                        if (!converted) converted = await getCache(`MARKET_ODDS_RES:${eventId}:${marketId}`)
                         if (converted) {
                             response.push(converted);
                             if (flag == "cron") await setCache(`MARKET_ODDS_RES:${eventId}:${marketId}`, converted)

@@ -18,6 +18,7 @@ const convertFancyToTargetDS = async (eventId) => {
         ]);
 
         if (!catalogue || !book) continue;
+        // console.log(JSON.stringify({ eventInfo, eventFancyData, catalogue, book }));
 
         catalogue.runners.forEach(r => {
             const fancy = Array.isArray(eventFancyData) && eventFancyData.length ? eventFancyData.find(f => f.RunnerName == catalogue.marketName) : {};
@@ -30,7 +31,7 @@ const convertFancyToTargetDS = async (eventId) => {
                 summaryStatus: 0,
                 sort: r.sortPriority || 0,
 
-                eventName: eventInfo.eventName,
+                eventName: eventInfo.event.name,
                 marketName: catalogue.marketName,
 
                 runsNo: fancy?.BackPrice1 ?? 0,

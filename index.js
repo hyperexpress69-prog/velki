@@ -9,6 +9,7 @@ const { initializeRedis } = require("./src/cache/redis");
 const { getMarketInfo } = require("./src/modules/markets/services/marketData");
 const { getSportsFancyData } = require("./src/modules/fancy/services/fancyData");
 const { matchRouter, fancyRouter } = require("./src/routes/index");
+const { getOdds } = require("./src/modules/markets/job/cron");
 
 const port = process.env.PORT || 3000;
 const app = express();
@@ -32,7 +33,8 @@ const main = async () => {
     const results = await Promise.allSettled([
       initializeRedis(),
       getMarketInfo(),
-      getSportsFancyData(),
+      // getSportsFancyData(),
+      getOdds()
     ]);
 
     results.forEach((result, index) => {
