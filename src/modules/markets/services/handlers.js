@@ -3,7 +3,7 @@ const { getEnvVar } = require("../../../utils/loadEnv");
 const { getApi } = require("../../../utils/apiCaller");
 
 const getOddsHandler = async () => {
-    console.log("getOddsHandler called", Date.now());
+    // console.log("getOddsHandler called", Date.now());
     try {
         const type = "in_play";
         const spEvtLstkey = `SPORT_EVENTS:${type}:*`;

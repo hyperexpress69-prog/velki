@@ -40,29 +40,26 @@ const getSportsFancyData = async () => {
         //  await fs.writeFile("events.json", JSON.stringify(events), "utf-8");
 
         await Promise.all(
-            events.map(e =>
-                e?.event?.id
-                    ? setCache(`EVENT:${e.event.id}:META`, e)
-                    : null
-            )
+            events.map(async e => {
+                if (e) await setCache(`EVENT:${e.event.id}:META`, e)
+            })
         );
 
         const catalogues = (await Promise.all(
-            events.map(e =>
-                e?.event?.id
-                    ? getApi([LIST_MARKET_CATALOGUE_EP, e.event.id], "market")
-                    : []
-            )
+            events.map(async e => {
+                if (!e.event.id) return []
+                return await getApi([LIST_MARKET_CATALOGUE_EP, e.event.id], "market")
+            })
         )).flat();
 
 
         await Promise.all(
-            catalogues.map(cat => {
+            catalogues.map(async cat => {
                 const eventId = cat?.event?.id;
                 const marketId = cat?.marketId;
                 if (!eventId || !marketId) return null;
 
-                return Promise.all([
+                return await Promise.all([
                     setCache(`MARKET:${marketId}:META`, cat),
                     setCache(`MARKET:${marketId}:EVENT`, eventId),
                     saddCache(`EVENT:${eventId}:MARKETS`, marketId)

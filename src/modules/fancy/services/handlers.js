@@ -7,7 +7,7 @@ const fs = require('fs/promises');
 
 const getMarketBookListData = async () => {
     try {
-        console.log("getMarketBookListData called", Date.now());
+        // console.log("getMarketBookListData called", Date.now());
 
         const [LIST_MARKET_BOOK_EP] = getEnvVar(["LIST_MARKET_BOOK_EP"]);
 
@@ -44,7 +44,7 @@ const getMarketBookListData = async () => {
 
 const getFancyBookMakerOdds = async () => {
     try {
-        console.log("getFancyBookMakerOdds called", Date.now());
+        // console.log("getFancyBookMakerOdds called", Date.now());
 
         const [fancyBookEP] = getEnvVar(["FANCY_BOOKMAKER_ODDS_EP"]);
 

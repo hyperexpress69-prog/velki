@@ -36,7 +36,6 @@ const getMarketInfo = async () => {
 
         await Promise.all(events.map(async (e) => {
           const event = e.event;
-          const eventType = e.eventType;
           let markets = await getApi([marketListEP, event.id], "market");
 
           if (!Array.isArray(markets) || !markets.length) return;
@@ -56,7 +55,7 @@ const getMarketInfo = async () => {
                   region: c.competitionRegion,
                   marketCount: c.marketCount
                 },
-                eventType
+                eventType: sportId
               })
             );
           }

@@ -12,19 +12,18 @@ const convertFancyToTargetDS = async (eventId) => {
 
     for (const marketId of marketIds) {
         const [catalogue, book] = await Promise.all([
-            getCache(`MARKET:${marketId}:META`),
-            getCache(`MARKET:${marketId}:BOOK`)
+            getCache(`MARKET:${marketId}`),
+            getCache(`MARKET_ODDS:${marketId}`),
         ]);
         if (!catalogue || !book) continue;
-
         catalogue.runners.forEach(r => {
-            const fancy = Array.isArray(eventFancyData) && eventFancyData.length ? eventFancyData.find(f => f.RunnerName == catalogue.marketName) : {};
+            const fancy = Array.isArray(eventFancyData) && eventFancyData.length ? eventFancyData.find(f => f.RunnerName == r.marketName) : {};
             result.push({
-                eventType: catalogue.eventType.id ?? 0,
-                eventId: (eventInfo.event.id),
+                eventType: catalogue?.eventType ?? 0,
+                eventId: (eventInfo?.event?.id),
                 marketId: r.selectionId || 1,
-                marketType: catalogue.marketType || 1,
-                status: book.status,
+                marketType: r.marketType || 1,
+                status: book.data.status,
                 summaryStatus: 0,
                 sort: r.sortPriority || 0,
 
@@ -37,12 +36,12 @@ const convertFancyToTargetDS = async (eventId) => {
                 oddsNo: fancy?.BackSize1 ?? 0,
                 oddsYes: fancy?.LaySize1 ?? 0,
 
-                oddsVersion: book.version || 0,
+                oddsVersion: book.data.version || 0,
                 resultRuns: -1,
 
                 min: fancy?.min || 10,
                 max: fancy?.max || 1000,
-                delayBetting: book.betDelay,
+                delayBetting: book.data.betDelay,
             });
         });
     }
@@ -121,7 +120,6 @@ const convertBookMakerToTargetDS = async (eventId) => {
             };
         }
     }
-    // console.log(JSON.stringify(target));
     return target;
 };
 

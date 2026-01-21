@@ -160,8 +160,7 @@ const convertToMatchListStructure = async (eventType, marketInfo, marketData) =>
 
     response.status = 4;
     response.priority = Math.floor(Math.random() * 1000);
-    response.id = response.eventId + response.priority;
-
+    response.id = response.eventId;
     return response;
 };
 
