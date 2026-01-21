@@ -9,7 +9,7 @@ const logger = createLogger("FANCY", "jsonl");
 
 const getSportsFancyData = async () => {
     try {
-        // console.log("sport start", Date.now());
+        console.log("sport exec start", Date.now());
         const [SPORTS_LIST_EP, LIST_COMPETITION_EP, LIST_EVENT_EP, LIST_MARKET_CATALOGUE_EP] = getEnvVar(["SPORTS_LIST_EP", "LIST_COMPETITION_EP", "LIST_EVENT_EP", "LIST_MARKET_CATALOGUE_EP"]);
 
         const sportsList = await getApi([SPORTS_LIST_EP], "market");
@@ -54,7 +54,6 @@ const getSportsFancyData = async () => {
                     : []
             )
         )).flat();
-        //  await fs.writeFile("cat.json", JSON.stringify(catalogues), "utf-8");
 
 
         await Promise.all(

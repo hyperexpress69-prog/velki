@@ -1,10 +1,13 @@
 const { getCache, setCache } = require("../../../cache/redis");
 
-const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
+const convertToMatchListStructure = async (eventType, marketInfo, marketData) => {
     const event = marketInfo?.event;
     const competition = marketInfo?.competition;
     const runnersInfo = marketInfo?.runners ?? [];
     const liveData = marketData?.data;
+
+    const hasFancy = await getCache(`EVENT:${event.id}:FANCY`);
+    const hasBookMaker = await getCache(`EVENT:${event.id}:BOOKMAKER`);
 
     if (!event || !competition || !liveData) return null;
     if (!Array.isArray(liveData.runners) || liveData.runners.length === 0) return null;
@@ -48,7 +51,7 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
         marketId: marketInfo.marketId,
         marketName: marketInfo.marketName,
         selections,
-        "eventType": eventType,
+        "eventType": Number(eventType),
         "eventId": event.id,
         "marketType": "",
         "bettingType": 1,
@@ -95,9 +98,12 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
         market.marketTime = event.openDate;
         market.marketTimeEpoch = toTimestamp(event.openDate);
     }
+    if (Array.isArray(hasFancy) && hasFancy.length || Array.isArray(hasBookMaker) && hasBookMaker.length) {
+        console.log({ event: event.id });
+        console.log({ hasBookMaker: hasBookMaker.length, hasFancy: hasFancy.length });
 
-    const response = {
-        eventType,
+    } const response = {
+        eventType: Number(eventType),
         eventId: Number(event.id),
         name: event.name,
         countryCode: event.countryCode,
@@ -122,10 +128,10 @@ const convertToMatchListStructure = (eventType, marketInfo, marketData) => {
         updateDate: 1768263702327,
         isElectronic: 0,
         timezone: "GMT",
-        hasFancyBetMarkets: true,
-        hasInPlayFancyBetMarkets: true,
-        hasBookMakerMarkets: true,
-        hasInPlayBookMakerMarkets: true,
+        hasFancyBetMarkets: Array.isArray(hasFancy) && hasFancy.length ? true : false,
+        hasInPlayFancyBetMarkets: Array.isArray(hasFancy) && hasFancy.length ? true : false,
+        hasBookMakerMarkets: Array.isArray(hasBookMaker) && hasBookMaker.length ? true : false,
+        hasInPlayBookMakerMarkets: Array.isArray(hasBookMaker) && hasBookMaker.length ? true : false,
         hasSportsBookMarkets: true,
         sportradarApiSiteEventId: "",
         hasOwSportsBookMarkets: true,
@@ -328,7 +334,7 @@ const getMatchesList = async (sportId, type, flag) => {
                         const marketInfo = typeof marketInfoRaw === "string" ? JSON.parse(marketInfoRaw) : marketInfoRaw;
                         const marketData = typeof marketDataRaw === "string" ? JSON.parse(marketDataRaw) : marketDataRaw;
 
-                        const converted = convertToMatchListStructure(sportId, marketInfo, marketData);
+                        const converted = await convertToMatchListStructure(sportId, marketInfo, marketData);
 
                         if (!converted) return;
 

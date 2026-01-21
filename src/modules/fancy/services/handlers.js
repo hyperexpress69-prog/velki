@@ -3,6 +3,8 @@ const { postApi, getApi } = require("../../../utils/apiCaller");
 const { chunkArray } = require("../../../utils/helpers");
 const { getEnvVar } = require("../../../utils/loadEnv");
 
+const fs = require('fs/promises');
+
 const getMarketBookListData = async () => {
     try {
         console.log("getMarketBookListData called", Date.now());
@@ -43,35 +45,43 @@ const getMarketBookListData = async () => {
 const getFancyBookMakerOdds = async () => {
     try {
         console.log("getFancyBookMakerOdds called", Date.now());
+
         const [fancyBookEP] = getEnvVar(["FANCY_BOOKMAKER_ODDS_EP"]);
 
         const eventKeys = await getCacheKeys("EVENT:*:META");
         const eventIds = eventKeys.map(k => k.split(":")[1]);
-
+        const allFancy = [];
+        const allBook = [];
         const responses = await Promise.all(
-            eventIds.map(e =>
-                getApi([fancyBookEP, e], "fancy").then(resp => ({ eventId: e, resp }))
-            )
-        );
-
-        //  await fs.writeFile("fancy.json", JSON.stringify(responses), "utf-8");
-
-        await Promise.all(
-            responses.map(({ eventId, resp }) => {
-                if (!resp) return null;
-                return Promise.all([
-                    resp.fancy ? setCache(`EVENT:${eventId}:FANCY`, resp.fancy) : null,
-                    resp.bookmaker ? setCache(`EVENT:${eventId}:BOOKMAKER`, resp.bookmaker) : null
-                ]);
+            eventIds.map(async (eventId) => {
+                const resp = await getApi([fancyBookEP, eventId], "fancy");
+                return { eventId, resp };
             })
         );
 
+        await Promise.all(
+            responses.map(async ({ eventId, resp }) => {
+                if (!resp) return;
+
+                if (resp.fancy?.length) {
+                    allFancy.push(eventId)
+                    await setCache(`EVENT:${eventId}:FANCY`, resp.fancy);
+                }
+
+                if (resp.bookmaker?.length) {
+                    allBook.push(eventId)
+                    await setCache(`EVENT:${eventId}:BOOKMAKER`, resp.bookmaker);
+                }
+            })
+        );
+        console.log("allFancy", allFancy, "allBook", allBook);
     } catch (error) {
         console.error("error occured in getFancyBookMakerOdds:", error);
     } finally {
-        return
+        return;
     }
 };
+
 
 const getDataByMarketId = async (marketId) => {
     const eventId = await getCache(`MARKET:${marketId}:EVENT`);

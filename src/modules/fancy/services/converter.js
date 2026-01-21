@@ -4,21 +4,18 @@ const convertFancyToTargetDS = async (eventId) => {
     const result = [];
 
     const eventInfo = await getCache(`EVENT:${eventId}:META`);
-    const eventFancyData = await getCache(`EVENT:${eventId}:FANCY`)
-    if (!eventInfo) return result;
+    const eventFancyData = await getCache(`EVENT:${eventId}:FANCY`);
+    if (!eventInfo || !eventFancyData) return result;
 
     const marketIds = await smembersCache(`EVENT:${eventId}:MARKETS`);
     if (!marketIds?.length) return result;
 
     for (const marketId of marketIds) {
-
         const [catalogue, book] = await Promise.all([
             getCache(`MARKET:${marketId}:META`),
             getCache(`MARKET:${marketId}:BOOK`)
         ]);
-
         if (!catalogue || !book) continue;
-        // console.log(JSON.stringify({ eventInfo, eventFancyData, catalogue, book }));
 
         catalogue.runners.forEach(r => {
             const fancy = Array.isArray(eventFancyData) && eventFancyData.length ? eventFancyData.find(f => f.RunnerName == catalogue.marketName) : {};
@@ -43,8 +40,8 @@ const convertFancyToTargetDS = async (eventId) => {
                 oddsVersion: book.version || 0,
                 resultRuns: -1,
 
-                min: fancy.min || 10,
-                max: fancy.max || 1000,
+                min: fancy?.min || 10,
+                max: fancy?.max || 1000,
                 delayBetting: book.betDelay,
             });
         });

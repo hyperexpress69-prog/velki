@@ -36,7 +36,7 @@ const getOddsHandler = async () => {
 
                             await setCache(`MARKET_ODDS:${m}`, odds);
                             winnerSId = odds?.data?.runners?.find(r => r.status == "WINNER")?.selectionId;
-                            if (winnerSId) await setCache(`win:marketOdds:${e}:${m}`, winnerSId);
+                            if (winnerSId) await setCache(`win:marketOdds:${e}:${m}`, winnerSId, 24 * 60 * 60);
                         })
                     })
                 }))
