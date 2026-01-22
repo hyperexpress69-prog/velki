@@ -13,7 +13,7 @@ async function runJobs() {
         getFancyBookMakerOdds,
     ];
     twoSecHandlers.forEach((handler) =>
-        nodeCron.schedule("*/2 * * * * *", handler),
+        nodeCron.schedule("*/29 * * * * *", handler),
     );
 }
 

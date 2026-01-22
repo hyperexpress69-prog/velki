@@ -57,77 +57,78 @@ const convertFancyToTargetDS = async (eventId) => {
 
 
 const convertBookMakerToTargetDS = async (eventId) => {
-    const target = { markets: {}, selections: {} };
-    // console.log(target);
     const now = Date.now();
 
+    const eventMeta = await getCache(`EVENT:${eventId}:META`);
+    const bookmakerRaw = await getCache(`EVENT:${eventId}:BOOKMAKER`);
     const marketIdsSet = await smembersCache(`EVENT:${eventId}:MARKETS`);
-    // console.log("marketIdsSet", marketIdsSet);
-    if (!marketIdsSet || !marketIdsSet.length) return target;
 
-
-    for (const marketId of marketIdsSet) {
-        const [marketMeta, marketBook] = await Promise.all([
-            getCache(`MARKET:${marketId}:META`),
-            getCache(`MARKET:${marketId}:BOOK`),
-        ]);
-
-        if (!marketMeta) continue;
-
-        // console.log({ marketMeta });
-        // console.log({ marketBook });
-
-        const eventMeta = await getCache(`EVENT:${eventId}:META`);
-        if (!eventMeta) continue;
-        // console.log({ eventMeta });
-
-        const fancy = await getCache(`EVENT:${eventId}:FANCY`);
-        const bookmaker = await getCache(`EVENT:${eventId}:BOOKMAKER`);
-        // console.log("fancy", { fancy });
-        // console.log("bookmaker", { bookmaker });
-
-        target.markets[marketId] = {
-            marketId: marketId,
-            marketType: fancy?.gtype === "session" ? 1 : 0,
-            marketName: marketMeta.marketName || "Unknown",
-            status: marketBook?.status === "OPEN" ? 1 : 2,
-            summaryStatus: 0,
-            sort: marketMeta.sortPriority || 1,
-            updateDate: now,
-            oddsSettingUpdateDate: now,
-            min: bookmaker?.[0]?.min ? Number(bookmaker[0].min) : 0,
-            max: bookmaker?.[0]?.max ? Number(bookmaker[0].max) : 0,
-            rebateRatio: 0,
-            delayBetting: marketBook?.betDelay || 0,
-            eventType: eventMeta.eventType?.id || 0,
-            eventId: eventId,
-            eventName: eventMeta.event?.name || "Unknown",
-            highlightMarketId: marketId
-        };
-        // console.log({ target: target.markets[marketId] }, "+++++++++++++");
-
-        const runners = marketMeta.runners || [];
-        for (const runner of runners) {
-            const selKey = `${marketId}:${runner.selectionId}`;
-            const bookRunner = marketBook?.runners?.find(r => r.selectionId === runner.selectionId);
-
-            const backOdds = bookRunner?.ex?.availableToBack?.map(o => o.price.toFixed(6)) || ["", "", ""];
-            const layOdds = bookRunner?.ex?.availableToLay?.map(o => o.price.toFixed(6)) || ["", "", ""];
-
-            target.selections[selKey] = {
-                marketId: marketId,
-                selectionId: runner.selectionId,
-                status: bookRunner?.status === "ACTIVE" ? 1 : 2,
-                runnerName: runner.runnerName,
-                sort: runner.sortPriority || 0,
-                backOddsInfo: JSON.stringify(backOdds),
-                layOddsInfo: JSON.stringify(layOdds),
-                updateDate: now,
-                eventId: eventId
-            };
-        }
+    if (!eventMeta || !bookmakerRaw) {
+        return { subCode: 404, message: "Data not found", status: false };
     }
-    console.log("bookmaker done");
+
+    const bookmakerData = typeof bookmakerRaw === 'string' ? JSON.parse(bookmakerRaw) : bookmakerRaw;
+
+    const rawMid = bookmakerData[0].mid || "";
+    const consolidatedMarketId = rawMid.split('_')[0] || "UnknownMarket";
+    const target = { markets: {}, selections: {} };
+
+    const firstRunner = bookmakerData[0] || {};
+
+    target.markets[consolidatedMarketId] = {
+        marketId: consolidatedMarketId,
+        marketType: 1,
+        marketName: bookmakerData[0].mname,
+        status: firstRunner.s === "ACTIVE" ? 1 : 2,
+        summaryStatus: 0,
+        sort: 1,
+        updateDate: now,
+        oddsSettingUpdateDate: now,
+        min: Number(firstRunner.min || 0),
+        max: Number(firstRunner.max || 0),
+        rebateRatio: 0,
+        delayBetting: 3, // Matches your target output
+        eventType: eventMeta.eventType?.id || 4,
+        eventId: eventId,
+        eventName: eventMeta.event?.name || "Unknown",
+        highlightMarketId: marketIdsSet?.[0] || ""
+    };
+
+    // 3. Build Selections from the Bookmaker Array
+    bookmakerData.forEach((bmRunner) => {
+        // Mapping sid to selectionId (matches your target: 870144/870145 style)
+        // Note: Using sid or mapping it to your specific IDs
+        const selectionId = bmRunner.sid;
+        const selKey = `${consolidatedMarketId}:${selectionId}`;
+
+        // Formatting Odds: Bookmaker uses b1, l1 for prices
+        // Based on your target output, we provide 3 price levels
+        const backOdds = [
+            bmRunner.b1 && bmRunner.b1 !== "0.00" ? Number(bmRunner.b1).toFixed(6) : "",
+            bmRunner.b2 && bmRunner.b2 !== "0.00" ? Number(bmRunner.b2).toFixed(6) : "",
+            bmRunner.b3 && bmRunner.b3 !== "0.00" ? Number(bmRunner.b3).toFixed(6) : ""
+        ];
+
+        const layOdds = [
+            bmRunner.l1 && bmRunner.l1 !== "0.00" ? Number(bmRunner.l1).toFixed(6) : "",
+            bmRunner.l2 && bmRunner.l2 !== "0.00" ? Number(bmRunner.l2).toFixed(6) : "",
+            bmRunner.l3 && bmRunner.l3 !== "0.00" ? Number(bmRunner.l3).toFixed(6) : ""
+        ];
+
+        target.selections[selKey] = {
+            marketId: consolidatedMarketId,
+            selectionId: Number(selectionId),
+            status: bmRunner.s === "ACTIVE" ? 1 : 2,
+            runnerName: bmRunner.nat,
+            sort: Number(bmRunner.sr || 0),
+            backOddsInfo: JSON.stringify(backOdds),
+            layOddsInfo: JSON.stringify(layOdds),
+            updateDate: now,
+            eventId: eventId.toString()
+        };
+    });
+
+    console.log("bookmaker conversion done");
     return target;
 };
 
