@@ -13,27 +13,27 @@ const getMarketBookListData = async () => {
 
         const keys = await getCacheKeys("MARKET:*:EVENT");
         const marketIds = keys.map(k => k.split(":")[1]);
-
         const chunks = chunkArray(marketIds, 20);
 
-        const books = (await Promise.all(
-            chunks.map(chunk =>
-                postApi([LIST_MARKET_BOOK_EP], { marketIds: chunk }, "market")
-                    .then(r => r?.data || [])
+        const books = (
+            await Promise.all(
+                chunks.map(async (chunk) => {
+                    const resp = await postApi([LIST_MARKET_BOOK_EP], { marketIds: chunk }, "market");
+                    return resp?.data || [];
+                })
             )
-        )).flat();
+        ).flat();
 
-        //  await fs.writeFile("books.json", JSON.stringify(books), "utf-8");
-
-
+        // await fs.writeFile("books.json", JSON.stringify(books), "utf-8"); 
         await Promise.all(
-            books.map(b =>
-                b?.marketId
-                    ? setCache(`MARKET:${b.marketId}:BOOK`, b)
-                    : null
+            books.map(async b => {
+                if (b?.marketId) {
+                    await setCache(`MARKET:${b.marketId}:BOOK`, b)
+                }
+                else console.log("book data not found for", b);
+            }
             )
         );
-
 
     } catch (error) {
         console.error("error occured in getMarketBookListData:", error);
@@ -55,6 +55,7 @@ const getFancyBookMakerOdds = async () => {
         const responses = await Promise.all(
             eventIds.map(async (eventId) => {
                 const resp = await getApi([fancyBookEP, eventId], "fancy");
+                // if (resp?.bookmaker?.length || resp?.fancy?.length) console.log(JSON.stringify(resp), "_______________");
                 return { eventId, resp };
             })
         );

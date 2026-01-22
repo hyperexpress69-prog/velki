@@ -97,7 +97,7 @@ const getMarketInfo = async () => {
       if (todayEventIds.length) await setCache(`SPORT_EVENTS:today:${sportId}`, todayEventIds);
       if (tomorrowEventIds.length) await setCache(`SPORT_EVENTS:tomorrow:${sportId}`, tomorrowEventIds);
 
-      console.log({ todayEventIds, tomorrowEventIds });
+      // console.log({ todayEventIds, tomorrowEventIds });
       //  this must always be set to "today"
       await getMarketOdds(sportId, "today");
 

@@ -3,48 +3,55 @@ const { getCache, smembersCache } = require("../../../cache/redis");
 const convertFancyToTargetDS = async (eventId) => {
     const result = [];
 
-    const eventInfo = await getCache(`EVENT:${eventId}:META`);
-    const eventFancyData = await getCache(`EVENT:${eventId}:FANCY`);
-    if (!eventInfo || !eventFancyData) return result;
+    const [eventInfo, eventFancyData] = await Promise.all([
+        getCache(`EVENT:${eventId}:META`),
+        getCache(`EVENT:${eventId}:FANCY`)
+    ]);
 
-    const marketIds = await smembersCache(`EVENT:${eventId}:MARKETS`);
-    if (!marketIds?.length) return result;
+    if (!eventInfo || !Array.isArray(eventFancyData)) {
+        return result;
+    }
 
-    for (const marketId of marketIds) {
-        const [catalogue, book] = await Promise.all([
-            getCache(`MARKET:${marketId}`),
-            getCache(`MARKET_ODDS:${marketId}`),
-        ]);
-        if (!catalogue || !book) continue;
-        catalogue.runners.forEach(r => {
-            const fancy = Array.isArray(eventFancyData) && eventFancyData.length ? eventFancyData.find(f => f.RunnerName == r.marketName) : {};
-            result.push({
-                eventType: catalogue?.eventType ?? 0,
-                eventId: (eventInfo?.event?.id),
-                marketId: r.selectionId || 1,
-                marketType: r.marketType || 1,
-                status: book.data.status,
-                summaryStatus: 0,
-                sort: r.sortPriority || 0,
+    const eventType = Number(eventInfo?.event?.eventTypeId ?? 4);
+    const eventName = eventInfo?.event?.name ?? "";
 
-                eventName: eventInfo.event.name,
-                marketName: catalogue.marketName,
+    for (const fancy of eventFancyData) {
+        result.push({
+            eventType,
+            eventId: Number(eventInfo.event.id),
 
-                runsNo: fancy?.BackPrice1 ?? 0,
-                runsYes: fancy?.LayPrice1 ?? 0,
+            marketId: Number(fancy.SelectionId),
+            marketType: 6, // Fancy / Session
 
-                oddsNo: fancy?.BackSize1 ?? 0,
-                oddsYes: fancy?.LaySize1 ?? 0,
+            status: fancy.GameStatus === "Ball Running" ? 1 : 2,
+            summaryStatus: 0,
+            sort: fancy.sr_no ?? 0,
 
-                oddsVersion: book.data.version || 0,
-                resultRuns: -1,
+            eventName,
+            marketName: fancy.RunnerName,
 
-                min: fancy?.min || 10,
-                max: fancy?.max || 1000,
-                delayBetting: book.data.betDelay,
-            });
+            runsNo: fancy.BackPrice1 ?? 0,
+            runsYes: fancy.LayPrice1 ?? 0,
+
+            oddsNo: fancy.BackSize1 ?? 0,
+            oddsYes: fancy.LaySize1 ?? 0,
+
+            oddsVersion: 1,
+            resultRuns: -1,
+
+            min: fancy.min ?? 0,
+            max: fancy.max ?? 0,
+            delayBetting: fancy.ballsess ?? 0,
+
+            updateDate: Date.now(),
+            oddsSettingUpdateDate: Date.now(),
+
+            rebateRatio: 0,
+            remarkFirstRow: fancy.rem ?? "",
+            remarkSecondRow: "",
         });
     }
+
     return result;
 };
 
@@ -62,22 +69,22 @@ const convertBookMakerToTargetDS = async (eventId) => {
     for (const marketId of marketIdsSet) {
         const [marketMeta, marketBook] = await Promise.all([
             getCache(`MARKET:${marketId}:META`),
-            getCache(`MARKET:${marketId}:BOOK`)
+            getCache(`MARKET:${marketId}:BOOK`),
         ]);
 
         if (!marketMeta) continue;
 
-        // console.log(marketMeta);
-        // console.log(marketBook);
+        // console.log({ marketMeta });
+        // console.log({ marketBook });
 
         const eventMeta = await getCache(`EVENT:${eventId}:META`);
         if (!eventMeta) continue;
-        // console.log(eventMeta);
+        // console.log({ eventMeta });
 
         const fancy = await getCache(`EVENT:${eventId}:FANCY`);
         const bookmaker = await getCache(`EVENT:${eventId}:BOOKMAKER`);
-        // console.log("fancy", fancy);
-        // console.log("bookmaker", bookmaker);
+        // console.log("fancy", { fancy });
+        // console.log("bookmaker", { bookmaker });
 
         target.markets[marketId] = {
             marketId: marketId,
@@ -97,7 +104,7 @@ const convertBookMakerToTargetDS = async (eventId) => {
             eventName: eventMeta.event?.name || "Unknown",
             highlightMarketId: marketId
         };
-        // console.log(target[marketId]);
+        // console.log({ target: target.markets[marketId] }, "+++++++++++++");
 
         const runners = marketMeta.runners || [];
         for (const runner of runners) {
@@ -120,6 +127,7 @@ const convertBookMakerToTargetDS = async (eventId) => {
             };
         }
     }
+    console.log("bookmaker done");
     return target;
 };
 
