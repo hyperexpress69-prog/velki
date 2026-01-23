@@ -82,7 +82,7 @@ const getMatchList = async (req, res) => {
                 matches.push(...mList);
             }
         }
-        console.log(matches.length);
+        // console.log(matches.length);
         return res.status(200).send(new ApiResponse(200, "Matches list fetched successfully", { matches }));
 
     } catch (error) {

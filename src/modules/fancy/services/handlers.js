@@ -83,6 +83,22 @@ const getFancyBookMakerOdds = async () => {
     }
 };
 
+const getPremiumFancyData = async () => {
+    try {
+        const [premUrl] = getEnvVar(["FANCY_PREMIUM_URL"]);
+
+        const eventKeys = await getCacheKeys("EVENT:*:META");
+        const eventIds = eventKeys.map(k => k.split(":")[1]);
+        const allPremData = [];
+
+    } catch (error) {
+        console.error("error occured", error);
+    }
+    finally {
+        return;
+    }
+}
+
 
 const getDataByMarketId = async (marketId) => {
     const eventId = await getCache(`MARKET:${marketId}:EVENT`);

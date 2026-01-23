@@ -99,8 +99,8 @@ const convertToMatchListStructure = async (eventType, marketInfo, marketData) =>
         market.marketTimeEpoch = toTimestamp(event.openDate);
     }
     if (Array.isArray(hasFancy) && hasFancy.length || Array.isArray(hasBookMaker) && hasBookMaker.length) {
-        console.log({ event: event.id });
-        console.log({ hasBookMaker: hasBookMaker.length, hasFancy: hasFancy.length });
+        // console.log({ event: event.id });
+        // console.log({ hasBookMaker: hasBookMaker.length, hasFancy: hasFancy.length });
 
     } const response = {
         eventType: Number(eventType),

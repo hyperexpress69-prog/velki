@@ -1,12 +1,30 @@
 const { getCache, smembersCache } = require("../../../cache/redis");
+const { getApi } = require("../../../utils/apiCaller");
+const { getEnvVar } = require("../../../utils/loadEnv");
 
 const convertFancyToTargetDS = async (eventId) => {
     const result = [];
 
-    const [eventInfo, eventFancyData] = await Promise.all([
+    let [eventInfo, eventFancyData] = await Promise.all([
         getCache(`EVENT:${eventId}:META`),
         getCache(`EVENT:${eventId}:FANCY`)
     ]);
+    console.log({ eventInfo, eventFancyData })
+    if (!eventInfo) {
+        markets = await getCache(`EVENT_MARKETS:${eventId}`);
+        if (!Array.isArray(markets) || !markets.length) return;
+
+        for (const market of markets) {
+            eventInfo = (await getCache(`MARKET:${market}`));
+            console.log(eventInfo, "_______________")
+            if (eventInfo) break;
+        }
+    }
+
+    if (!eventFancyData) {
+        const [fancyBookEP] = getEnvVar(["FANCY_BOOKMAKER_ODDS_EP"]);
+        eventFancyData = (await getApi([fancyBookEP, eventId], "fancy")).fancy;
+    }
 
     if (!eventInfo || !Array.isArray(eventFancyData)) {
         return result;
@@ -51,7 +69,7 @@ const convertFancyToTargetDS = async (eventId) => {
             remarkSecondRow: "",
         });
     }
-
+    console.log({ result })
     return result;
 };
 
@@ -59,11 +77,28 @@ const convertFancyToTargetDS = async (eventId) => {
 const convertBookMakerToTargetDS = async (eventId) => {
     const now = Date.now();
 
-    const eventMeta = await getCache(`EVENT:${eventId}:META`);
-    const bookmakerRaw = await getCache(`EVENT:${eventId}:BOOKMAKER`);
-    const marketIdsSet = await smembersCache(`EVENT:${eventId}:MARKETS`);
+    let eventMeta = await getCache(`EVENT:${eventId}:META`);
+    let bookmakerRaw = await getCache(`EVENT:${eventId}:BOOKMAKER`);
+    let marketIdsSet = await smembersCache(`EVENT:${eventId}:MARKETS`);
+
+    if (!eventMeta) {
+        markets = await getCache(`EVENT_MARKETS:${eventId}`);
+        if (!Array.isArray(markets) || !markets.length) return;
+
+        for (const market of markets) {
+            eventMeta = (await getCache(`MARKET:${market}`));
+            console.log(eventMeta, "_______________")
+            if (eventMeta) break;
+        }
+    }
+
+    if (!bookmakerRaw) {
+        const [fancyBookEP] = getEnvVar(["FANCY_BOOKMAKER_ODDS_EP"]);
+        bookmakerRaws = (await getApi([fancyBookEP, eventId], "fancy")).bookmaker;
+    }
 
     if (!eventMeta || !bookmakerRaw) {
+
         return { subCode: 404, message: "Data not found", status: false };
     }
 
