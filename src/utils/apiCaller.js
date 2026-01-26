@@ -8,12 +8,25 @@ const getApi = async (args, flag) => {
   let url = "";
   try {
 
-    if (flag == "market") [baseUrl] = getEnvVar(["THIRD_PARTY_URL"]);
-    else if (flag == "fancy") [baseUrl] = getEnvVar(["THIRD_PARTY_FANCY_URL"]);
+    if (flag == "market") {
+      [baseUrl] = getEnvVar(["THIRD_PARTY_URL"]);
+      if (!baseUrl) throw new Error(`Base url not found`);
 
-    if (!baseUrl) throw new Error(`Base url not found`);
+      url = `${baseUrl}/${args.join("/")}`;
+    }
+    else if (flag == "fancy") {
+      [baseUrl] = getEnvVar(["THIRD_PARTY_FANCY_URL"]);
+      if (!baseUrl) throw new Error(`Base url not found`);
 
-    url = `${baseUrl}/${args.join("/")}`;
+      url = `${baseUrl}/${args.join("/")}`;
+    }
+    else if (flag == "fancy-premium") {
+      [baseUrl] = getEnvVar(["FANCY_PREMIUM_URL"]);
+      if (!baseUrl) throw new Error(`Base url not found`);
+
+      url = `${baseUrl}?${args.join("&")}`;
+    }
+
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}, url:${url}`);
 

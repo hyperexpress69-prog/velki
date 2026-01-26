@@ -3,6 +3,7 @@ const { getOddsHandler } = require("../modules/markets/services/handlers");
 const {
     getMarketBookListData,
     getFancyBookMakerOdds,
+    getPremiumFancyData,
 } = require("../modules/fancy/services/handlers");
 
 // must always be 2 here
@@ -11,6 +12,7 @@ async function runJobs() {
         getOddsHandler,
         getMarketBookListData,
         getFancyBookMakerOdds,
+        getPremiumFancyData
     ];
     twoSecHandlers.forEach((handler) =>
         nodeCron.schedule("*/29 * * * * *", handler),

@@ -10,7 +10,7 @@ const convertFancyToTargetDS = async (eventId) => {
         getCache(`EVENT:${eventId}:FANCY`)
     ]);
     if (!eventInfo) {
-        markets = await getCache(`EVENT_MARKETS:${eventId}`);
+        let markets = await getCache(`EVENT_MARKETS:${eventId}`);
         if (!Array.isArray(markets) || !markets.length) return;
 
         for (const market of markets) {
@@ -86,7 +86,7 @@ const convertBookMakerToTargetDS = async (eventId) => {
     let marketIdsSet = await smembersCache(`EVENT:${eventId}:MARKETS`);
 
     if (!eventMeta) {
-        markets = await getCache(`EVENT_MARKETS:${eventId}`);
+        let markets = await getCache(`EVENT_MARKETS:${eventId}`);
         if (!Array.isArray(markets) || !markets.length) return;
 
         for (const market of markets) {
@@ -106,7 +106,6 @@ const convertBookMakerToTargetDS = async (eventId) => {
     }
 
     if (!eventMeta || !bookmakerData) {
-
         return { subCode: 404, message: "Data not found", status: false };
     }
 
@@ -174,4 +173,73 @@ const convertBookMakerToTargetDS = async (eventId) => {
     return target;
 };
 
-module.exports = { convertFancyToTargetDS, convertBookMakerToTargetDS }
+const convertPremiumFancyToTargetDS = async (eventId) => {
+    let eventMeta = await getCache(`EVENT:${eventId}:META`);
+
+    if (!eventMeta) {
+        let markets = await getCache(`EVENT_MARKETS:${eventId}`);
+        if (!Array.isArray(markets) || !markets.length) return;
+
+        for (const market of markets) {
+            eventMeta = (await getCache(`MARKET:${market}`));
+            if (eventMeta) {
+                await setCache(`EVENT:${eventId}:META`, eventMeta);
+                break;
+            }
+        }
+    }
+    // '35181203', '35182391', '35186326', '35186256', '35184521'
+    const markets = await getCache(`EVENT:${eventId}:PREMIUM_FANCY`);
+    console.log({ eventMeta, markets });
+    const result = markets.map(market => {
+        const now = Date.now();
+
+        const selections = (market.runners || []).map(runner => ({
+            id: runner.selectionId,
+            apiSiteSelectionId: String(runner.selectionId),
+            eventId: market.eventid,
+            eventType: eventMeta.eventType,
+            betfairEventId: eventMeta.betfairEventId,
+            marketId: market.marketId,
+            selectionName: runner.runnerName,
+            odds: runner.back?.[0]?.price ?? 0,
+            isActive: runner.status === "1" ? 1 : 0,
+            handicap: 0,
+            updateDate: now,
+            oddsUpdateDate: now
+        }));
+
+        return {
+            id: market.marketId,
+            eventId: market.eventid,
+            apiSiteMarketId: market.marketId,
+            eventType: eventMeta.eventType,
+            betfairEventId: eventMeta.betfairEventId,
+            marketName: market.market,
+            eventLive: true,
+            marketLive: 1,
+            numberOfWinner: 1,
+            numberOfActiveRunners: selections.length,
+            marketStatus: market.status === "1" ? 1 : 0,
+            isExpand: 0,
+            closeSite: null,
+            bookMode: "[\"6\", \"14\"]",
+            apiSiteStatus: market.status === "1" ? "OPEN" : "CLOSED",
+            updateDate: now,
+            min: eventMeta.minBet,
+            max: eventMeta.maxBet,
+            sort: 1,
+            tabType: 2,
+            isPopular: false,
+            isShowExposure: false,
+            geniusSportsSelection: selections,
+            selectionTs: now
+        };
+    });
+
+    return result;
+}
+
+
+
+module.exports = { convertFancyToTargetDS, convertBookMakerToTargetDS, convertPremiumFancyToTargetDS }

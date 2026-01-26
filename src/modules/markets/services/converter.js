@@ -53,9 +53,8 @@ const convertToMatchListStructure = async (eventType, marketInfo, marketData) =>
         selections,
         "eventType": Number(eventType),
         "eventId": event.id,
-        "marketType": "",
         "bettingType": 1,
-        "countryCode": null,
+        "countryCode": event.countryCode,
         "marketType": "MATCH_ODDS",
         "status": 1,
         "summaryStatus": 0,
@@ -101,8 +100,8 @@ const convertToMatchListStructure = async (eventType, marketInfo, marketData) =>
     if (Array.isArray(hasFancy) && hasFancy.length || Array.isArray(hasBookMaker) && hasBookMaker.length) {
         // console.log({ event: event.id });
         // console.log({ hasBookMaker: hasBookMaker.length, hasFancy: hasFancy.length });
-
-    } const response = {
+    }
+    const response = {
         eventType: Number(eventType),
         eventId: Number(event.id),
         name: event.name,
@@ -125,7 +124,7 @@ const convertToMatchListStructure = async (eventType, marketInfo, marketData) =>
         closeSite: null,
         competitionCloseSite: null,
         linkEventId: null,
-        updateDate: 1768263702327,
+        updateDate: Date.now(),
         isElectronic: 0,
         timezone: "GMT",
         hasFancyBetMarkets: Array.isArray(hasFancy) && hasFancy.length ? true : false,
@@ -134,8 +133,8 @@ const convertToMatchListStructure = async (eventType, marketInfo, marketData) =>
         hasInPlayBookMakerMarkets: Array.isArray(hasBookMaker) && hasBookMaker.length ? true : false,
         hasSportsBookMarkets: true,
         sportradarApiSiteEventId: "",
-        hasOwSportsBookMarkets: true,
-        hasGeniusSportsMarkets: true,
+        hasOwSportsBookMarkets: false,
+        hasGeniusSportsMarkets: false,
     };
 
     if (event.timezone) response.timezone = event.timezone;

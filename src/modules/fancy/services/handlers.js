@@ -86,11 +86,20 @@ const getFancyBookMakerOdds = async () => {
 const getPremiumFancyData = async () => {
     try {
         const [premUrl] = getEnvVar(["FANCY_PREMIUM_URL"]);
-
+        const premIds = [];
         const eventKeys = await getCacheKeys("EVENT:*:META");
         const eventIds = eventKeys.map(k => k.split(":")[1]);
-        const allPremData = [];
 
+        await Promise.all(eventIds.map(async e => {
+            let premData = (await getApi([premUrl, `EventTypeID=${e}`, `matchId=${e}`], "fancy-premium"));
+            premData = premData.map(e => typeof e == "string" ? JSON.parse(e) : e);
+            if (premData?.length) {
+                premIds.push(e);
+                await setCache(`EVENT:${e}:PREMIUM_FANCY`, premData);
+            }
+        }))
+
+        console.log("premIds", premIds);
     } catch (error) {
         console.error("error occured", error);
     }
@@ -139,5 +148,6 @@ module.exports = {
     getDataByEventId,
     getDataByMarketId,
     getMarketBookListData,
-    getFancyBookMakerOdds
+    getFancyBookMakerOdds,
+    getPremiumFancyData
 }

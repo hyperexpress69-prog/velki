@@ -1,7 +1,7 @@
 const { ApiError } = require("../../../utils/apiError");
 const { ApiResponse } = require("../../../utils/apiResponse");
 const { createLogger } = require("../../../utils/logger");
-const { convertFancyToTargetDS, convertBookMakerToTargetDS } = require("../services/converter");
+const { convertFancyToTargetDS, convertBookMakerToTargetDS, convertPremiumFancyToTargetDS } = require("../services/converter");
 
 const logger = createLogger("fancy_api", "jsonl");
 
@@ -37,7 +37,28 @@ const getBookMakerData = async (req, res) => {
     }
 }
 
+const getPremiumFancyData = async (req, res) => {
+    try {
+        const { match_id, eventType, game_type } = req.query;
+        if (
+            !match_id
+            // || !eventType
+            // || !game_type
+        ) throw new ApiError(400, "match_id, eventType and game_type are requried");
+
+        const data = await convertPremiumFancyToTargetDS(match_id);
+        return res.status(200).send(new ApiResponse(200, "Premium market fetched successfully.", data));
+
+    } catch (error) {
+        logger.error(JSON.stringify({ at: Date.now(), message: error.message || "internal server error" }));
+        console.error(error, "internal server error");
+
+        return res.status(error.status || 500).send(new ApiError(error.status, error.message || "internal server error"));
+    }
+}
+
 module.exports = {
     getFancyMarketData,
+    getPremiumFancyData,
     getBookMakerData
 }
