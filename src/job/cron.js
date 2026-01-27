@@ -15,7 +15,7 @@ async function runJobs() {
         getPremiumFancyData
     ];
     twoSecHandlers.forEach((handler) =>
-        nodeCron.schedule("*/29 * * * * *", handler),
+        nodeCron.schedule("*/29 */2 * * * *", handler),
     );
 }
 

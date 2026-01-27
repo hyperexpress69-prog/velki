@@ -84,7 +84,6 @@ const convertBookMakerToTargetDS = async (eventId) => {
     let eventMeta = await getCache(`EVENT:${eventId}:META`);
     let bookmakerData = await getCache(`EVENT:${eventId}:BOOKMAKER`);
     let marketIdsSet = await smembersCache(`EVENT:${eventId}:MARKETS`);
-
     if (!eventMeta) {
         let markets = await getCache(`EVENT_MARKETS:${eventId}`);
         if (!Array.isArray(markets) || !markets.length) return;
@@ -109,9 +108,8 @@ const convertBookMakerToTargetDS = async (eventId) => {
         return { subCode: 404, message: "Data not found", status: false };
     }
 
-
-    const rawMid = bookmakerData[0].mid || "";
-    const consolidatedMarketId = rawMid.split('_')[0] || "UnknownMarket";
+    const rawMid = String(bookmakerData[0].mid) || "";
+    const consolidatedMarketId = rawMid && typeof rawMid == "string" ? rawMid?.split('_')?.[0] : "UnknownMarket";
     const target = { markets: {}, selections: {} };
 
     const firstRunner = bookmakerData[0] || {};
@@ -135,15 +133,9 @@ const convertBookMakerToTargetDS = async (eventId) => {
         highlightMarketId: marketIdsSet?.[0] || ""
     };
 
-    // 3. Build Selections from the Bookmaker Array
     bookmakerData.forEach((bmRunner) => {
-        // Mapping sid to selectionId (matches your target: 870144/870145 style)
-        // Note: Using sid or mapping it to your specific IDs
         const selectionId = bmRunner.sid;
         const selKey = `${consolidatedMarketId}:${selectionId}`;
-
-        // Formatting Odds: Bookmaker uses b1, l1 for prices
-        // Based on your target output, we provide 3 price levels
         const backOdds = [
             bmRunner.b1 && bmRunner.b1 !== "0.00" ? Number(bmRunner.b1).toFixed(6) : "",
             bmRunner.b2 && bmRunner.b2 !== "0.00" ? Number(bmRunner.b2).toFixed(6) : "",
